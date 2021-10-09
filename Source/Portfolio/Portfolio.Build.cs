@@ -8,6 +8,19 @@ public class Portfolio : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "NavigationSystem", "AIModule" });
+		PrivateIncludePaths.AddRange(new string[] {
+			"Portfolio/",
+			"Portfolio/ProceduralTerrainGeneration"
+			
+		});
+		
+		
+        PublicDependencyModuleNames.AddRange(new string[]
+        {
+	        "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "NavigationSystem", "AIModule",
+	        "FastNoise","FastNoiseGenerator", "ProceduralMeshComponent"
+        });
+        
+
     }
 }
