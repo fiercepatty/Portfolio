@@ -14,8 +14,10 @@ UProceduralTerrainComponent::UProceduralTerrainComponent()
 	// ...
 }
 
-void UProceduralTerrainComponent::GenerateMap()
+void UProceduralTerrainComponent::GenerateMap(FVector StartLocation)
 {
+	ComponentLocation= StartLocation;
+	
 	FastNoise->SetupFastNoise(NoiseType, Seed, Frequency, Interp, FractalType,
 				Octaves,Lacunarity,Gain,CellularJitter, CellularDistanceFunction, CellularReturnType);
 
@@ -109,9 +111,8 @@ float UProceduralTerrainComponent::GetNoiseValueForGridCoordinates(int x, int y)
 	if(FastNoise)
 	{
 		return FastNoise->GetNoise3D(
-		((x+GetOwner()->GetActorLocation().X) * NoiseInputScale) + 0.1,
-		((y+GetOwner()->GetActorLocation().Y) * NoiseInputScale) + 0.1,
-		1.0)* NoiseOutputScale;
+		(x+ ComponentLocation.X),(y+ComponentLocation.Y),
+		0.0)* NoiseOutputScale;
 	}
 	else
 	{

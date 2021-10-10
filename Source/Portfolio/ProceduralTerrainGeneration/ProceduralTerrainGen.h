@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include <stdbool.h>
-
 #include "CoreMinimal.h"
 #include "ProceduralTerrainComponent.h"
 #include "GameFramework/Actor.h"
@@ -42,16 +40,16 @@ public:
 	UPROPERTY(VisibleAnywhere)
 	UProceduralTerrainComponent* ProceduralTerrain;
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Terrian Buttons")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Terrian Generation")
 	void GenerateTerrain();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Terrian Buttons")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Terrian Generation")
 	void DeleteTerrain();
 
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Terrian Buttons")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Terrian Generation")
 	void UpdateVisibleTerrain();
 
-	void RecursiveActiveCheck(EDirectionException DirectionException);
+	void RecursiveActiveCheck(int IndexFromActiveLandscape, EDirectionException PreviousDirectionException, int ViewDistance);
 
 	void GenerateSiblingLandscapes(int IndexFromActiveLandscape, EDirectionException PreviousDirectionException);
 	
@@ -113,12 +111,15 @@ public:
 
 	void SetChunkViewDistance(int ChunkDistance);
 
+	void SetNoiseSamplingPerLine(int NoiseSampling);
 
 
 private:
-	void MakeVisibleOrGenerateComponent(AProceduralTerrainGen* TerrainGen);
-	
-	AProceduralTerrainGen* CreateProceduralTerrain(int PosX, int PosY, int CurrentLandscapeIndex);
+	void MakeVisibleComponent(AProceduralTerrainGen* TerrainGen, int IndexFromActiveLandscape );
+
+	AProceduralTerrainGen* GenerateVisibleComponent(EDirectionException PreviousDirectionException,int IndexFromActiveLandscape);
+
+	AProceduralTerrainGen* CreateProceduralTerrain(int PosX, int PosY, int CurrentLandscapeIndex, EDirectionException PreviousDirectionException);
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings", meta = (AllowPrivateAccess = "true"))
 	AProceduralTerrainGen* EastTerrainGenerated;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings", meta = (AllowPrivateAccess = "true"))
@@ -127,6 +128,9 @@ private:
 	AProceduralTerrainGen* NorthTerrainGenerated;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings", meta = (AllowPrivateAccess = "true"))
 	AProceduralTerrainGen* SouthTerrainGenerated;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Noise Settings", meta = (AllowPrivateAccess = "true"))
+	FVector NoiseComponentStartLocation;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings", meta = (AllowPrivateAccess = "true"))
 	int CurrentIndexFromActiveLandscape = 999;

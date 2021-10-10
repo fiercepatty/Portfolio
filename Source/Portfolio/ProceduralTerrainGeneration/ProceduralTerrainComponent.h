@@ -19,7 +19,7 @@ public:
 	UProceduralTerrainComponent();
 	
 	UFUNCTION(BlueprintCallable)
-	void GenerateMap();
+	void GenerateMap(FVector StartingLocation);
 
 	bool IsGenerated();
 
@@ -71,6 +71,7 @@ public:
 	void SetNoiseOutputScale(float NewNoiseOutputScale);
 
 private:
+	FVector ComponentLocation;
 	bool bGenerated =false;
 	bool bIsVisible = false;
 	TArray<FVector> Vertices;
