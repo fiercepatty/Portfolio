@@ -9,15 +9,15 @@
 UENUM(BlueprintType)
 enum class EDirectionException: uint8
 {
-	VE_None UMETA(DisplayName="None"),
+	Ve_None UMETA(DisplayName="None"),
 	
-	VE_North UMETA(DisplayName="North"),
+	Ve_North UMETA(DisplayName="North"),
 	
-	VE_South	UMETA(DisplayName = "South"),
+	Ve_South	UMETA(DisplayName = "South"),
 	
-	VE_East		UMETA(DisplayName = "East"),
+	Ve_East		UMETA(DisplayName = "East"),
 	
-	VE_West	UMETA(DisplayName = "West")
+	Ve_West	UMETA(DisplayName = "West")
 
 };
 
@@ -32,8 +32,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings")
 	bool bActiveTerrain = false;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings")
 	bool bVisibleTerrain =true;
+	
 	bool bNeedDestroyed = false;
 	bool bNeverDestroy = false;
 
@@ -53,14 +55,11 @@ public:
 
 	void GenerateSiblingLandscapes(int IndexFromActiveLandscape, EDirectionException PreviousDirectionException);
 	
-	void GenerateCurrentLandscape();
-	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
+	void GenerateCurrentLandscape() const;
 
 	void SetCurrentIndexFromActiveLandscape(int Index);
 
-	int GetCurrentIndexFromActiveLandscape();
+	int GetCurrentIndexFromActiveLandscape() const;
 
 	void SetLandscapeAmount(int LandscapeViewAmount);
 
@@ -105,7 +104,7 @@ public:
 
 	void SetNoiseOutputScale(float NewNoiseOutputScale);
 
-	void InitializeVariable(AProceduralTerrainGen* Proc);
+	void InitializeVariable(AProceduralTerrainGen* Proc) const;
 	
 	void RecursiveDelete();
 
@@ -113,13 +112,19 @@ public:
 
 	void SetNoiseSamplingPerLine(int NoiseSampling);
 
+	void SetTerrainShape(EComponentShapes const ComponentShapes){TerrainShape=ComponentShapes;}
+
+	void SetTerrainShapeSide(EShapeSide const ShapeSide){TerrainShapeSide=ShapeSide;}
+
+	void SetTerrainSubSections(ESubSections const SubSections) {TerrainSubSections=SubSections;}
+
 
 private:
-	void MakeVisibleComponent(AProceduralTerrainGen* TerrainGen, int IndexFromActiveLandscape );
+	static void MakeVisibleComponent(AProceduralTerrainGen* TerrainGen, int IndexFromActiveLandscape );
 
-	AProceduralTerrainGen* GenerateVisibleComponent(EDirectionException PreviousDirectionException,int IndexFromActiveLandscape);
+	AProceduralTerrainGen* GenerateVisibleComponent(EDirectionException PreviousDirectionException,int IndexFromActiveLandscape, EShapeSide TerrainSide= EShapeSide::Ve_Top);
 
-	AProceduralTerrainGen* CreateProceduralTerrain(int PosX, int PosY, int CurrentLandscapeIndex, EDirectionException PreviousDirectionException);
+	AProceduralTerrainGen* CreateProceduralTerrain(int PosX, int PosY,int PosZ, int CurrentLandscapeIndex, EDirectionException PreviousDirectionException, EShapeSide TerrainSide);
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings", meta = (AllowPrivateAccess = "true"))
 	AProceduralTerrainGen* EastTerrainGenerated;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings", meta = (AllowPrivateAccess = "true"))
@@ -132,6 +137,15 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Noise Settings", meta = (AllowPrivateAccess = "true"))
 	FVector NoiseComponentStartLocation;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings", meta = (AllowPrivateAccess = "true"))
+	EComponentShapes TerrainShape;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings", meta = (AllowPrivateAccess = "true"))
+	EShapeSide TerrainShapeSide;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings", meta = (AllowPrivateAccess = "true"))
+	ESubSections TerrainSubSections;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings", meta = (AllowPrivateAccess = "true"))
 	int CurrentIndexFromActiveLandscape = 999;
 	
@@ -191,7 +205,8 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Terrian Generation | Noise Settings")
 	UFastNoiseWrapper* FastNoise;
 
-};
+	static int ConvertEnumSubSectionsToInteger(ESubSections AShapeSubSections);
 
+};
 
 

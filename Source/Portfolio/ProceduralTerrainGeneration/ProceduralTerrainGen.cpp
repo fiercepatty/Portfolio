@@ -2,7 +2,6 @@
 
 
 #include "ProceduralTerrainGen.h"
-
 #include "DrawDebugHelpers.h"
 #include "Kismet/KismetSystemLibrary.h"
 
@@ -18,7 +17,6 @@ AProceduralTerrainGen::AProceduralTerrainGen()
 	}
 }
 
-
 void AProceduralTerrainGen::GenerateTerrain()
 {
 	bNeverDestroy=true;
@@ -27,7 +25,7 @@ void AProceduralTerrainGen::GenerateTerrain()
 	NoiseSamplesPerLine = TotalSizeToGenerate / NoiseResolution;
 	CurrentIndexFromActiveLandscape=0;
 	GenerateCurrentLandscape();
-	GenerateSiblingLandscapes(1, EDirectionException::VE_None);
+	GenerateSiblingLandscapes(1, EDirectionException::Ve_None);
 }
 
 void AProceduralTerrainGen::DeleteTerrain()
@@ -40,10 +38,10 @@ void AProceduralTerrainGen::UpdateVisibleTerrain()
 {
 	bActiveTerrain=true;
 	bVisibleTerrain=true;
-	RecursiveActiveCheck(1,EDirectionException::VE_None,ChunkViewDistance);
+	RecursiveActiveCheck(1,EDirectionException::Ve_None,ChunkViewDistance);
 }
 
-void AProceduralTerrainGen::RecursiveActiveCheck(const int IndexFromActiveLandscape, EDirectionException PreviousDirectionException, int ViewDistance)
+void AProceduralTerrainGen::RecursiveActiveCheck(const int IndexFromActiveLandscape, const EDirectionException PreviousDirectionException, int ViewDistance)
 {
 	bool bStartNorthRecursion=false;
 	bool bStartSouthRecursion=false;
@@ -66,7 +64,7 @@ void AProceduralTerrainGen::RecursiveActiveCheck(const int IndexFromActiveLandsc
 	{
 		switch (PreviousDirectionException)
 		{
-		case EDirectionException::VE_None:
+		case EDirectionException::Ve_None:
 			{
 				bMakeNorthVisible=true;
 				bMakeEastVisible=true;
@@ -79,7 +77,7 @@ void AProceduralTerrainGen::RecursiveActiveCheck(const int IndexFromActiveLandsc
 				bStartWestRecursion=true;
 				break;
 			}
-		case EDirectionException::VE_North:
+		case EDirectionException::Ve_North:
 			{
 				bMakeNorthVisible=true;
 				bMakeEastVisible=true;
@@ -90,7 +88,7 @@ void AProceduralTerrainGen::RecursiveActiveCheck(const int IndexFromActiveLandsc
 				bStartWestRecursion=true;
 				break;
 			}
-		case EDirectionException::VE_South:
+		case EDirectionException::Ve_South:
 			{
 				bMakeEastVisible=true;
 				bMakeSouthVisible=true;
@@ -101,14 +99,14 @@ void AProceduralTerrainGen::RecursiveActiveCheck(const int IndexFromActiveLandsc
 				bStartWestRecursion=true;
 				break;
 			}
-		case EDirectionException::VE_East:
+		case EDirectionException::Ve_East:
 			{
 				bMakeEastVisible=true;
 
 				bStartEastRecursion=true;
 				break;
 			}
-		case EDirectionException::VE_West:
+		case EDirectionException::Ve_West:
 			{
 				bMakeWestVisible=true;
 
@@ -122,11 +120,11 @@ void AProceduralTerrainGen::RecursiveActiveCheck(const int IndexFromActiveLandsc
 	{
 		switch (PreviousDirectionException)
 		{
-		case EDirectionException::VE_None:
+		case EDirectionException::Ve_None:
 			{
 				break;
 			}
-		case EDirectionException::VE_North:
+		case EDirectionException::Ve_North:
 			{
 				if(NorthTerrainGenerated)
 				{
@@ -157,7 +155,7 @@ void AProceduralTerrainGen::RecursiveActiveCheck(const int IndexFromActiveLandsc
 				}
 				break;
 			}
-		case EDirectionException::VE_South:
+		case EDirectionException::Ve_South:
 			{
 				if(SouthTerrainGenerated)
 				{
@@ -188,7 +186,7 @@ void AProceduralTerrainGen::RecursiveActiveCheck(const int IndexFromActiveLandsc
 				}
 				break;
 			}
-		case EDirectionException::VE_East:
+		case EDirectionException::Ve_East:
 			{
 				if(EastTerrainGenerated)
 				{
@@ -201,7 +199,7 @@ void AProceduralTerrainGen::RecursiveActiveCheck(const int IndexFromActiveLandsc
 				}
 				break;
 			}
-		case EDirectionException::VE_West:
+		case EDirectionException::Ve_West:
 			{
 				if(WestTerrainGenerated)
 				{
@@ -226,7 +224,7 @@ void AProceduralTerrainGen::RecursiveActiveCheck(const int IndexFromActiveLandsc
 		}
 		else
 		{
-			NorthTerrainGenerated=GenerateVisibleComponent(EDirectionException::VE_North,IndexFromActiveLandscape+1);
+			NorthTerrainGenerated=GenerateVisibleComponent(EDirectionException::Ve_North,IndexFromActiveLandscape+1);
 		}
 	}
 	else
@@ -245,7 +243,7 @@ void AProceduralTerrainGen::RecursiveActiveCheck(const int IndexFromActiveLandsc
 		}
 		else
 		{
-			SouthTerrainGenerated=GenerateVisibleComponent(EDirectionException::VE_South,IndexFromActiveLandscape+1);
+			SouthTerrainGenerated=GenerateVisibleComponent(EDirectionException::Ve_South,IndexFromActiveLandscape+1);
 		}
 	}
 	else
@@ -264,7 +262,7 @@ void AProceduralTerrainGen::RecursiveActiveCheck(const int IndexFromActiveLandsc
 		}
 		else
 		{
-			EastTerrainGenerated=GenerateVisibleComponent(EDirectionException::VE_East,IndexFromActiveLandscape+1);
+			EastTerrainGenerated=GenerateVisibleComponent(EDirectionException::Ve_East,IndexFromActiveLandscape+1);
 		}
 	}
 	else
@@ -283,7 +281,7 @@ void AProceduralTerrainGen::RecursiveActiveCheck(const int IndexFromActiveLandsc
 		}
 		else
 		{
-			WestTerrainGenerated=GenerateVisibleComponent(EDirectionException::VE_West,IndexFromActiveLandscape+1);
+			WestTerrainGenerated=GenerateVisibleComponent(EDirectionException::Ve_West,IndexFromActiveLandscape+1);
 		}
 
 	}
@@ -298,77 +296,208 @@ void AProceduralTerrainGen::RecursiveActiveCheck(const int IndexFromActiveLandsc
 	
 	if(bStartNorthRecursion)
 	{
-		NorthTerrainGenerated->RecursiveActiveCheck(IndexFromActiveLandscape+1,EDirectionException::VE_North,ViewDistance);
+		NorthTerrainGenerated->RecursiveActiveCheck(IndexFromActiveLandscape+1,EDirectionException::Ve_North,ViewDistance);
 	}
 	if(bStartEastRecursion)
 	{
-		EastTerrainGenerated->RecursiveActiveCheck(IndexFromActiveLandscape+1,EDirectionException::VE_East,ViewDistance);
+		EastTerrainGenerated->RecursiveActiveCheck(IndexFromActiveLandscape+1,EDirectionException::Ve_East,ViewDistance);
 	}
 	if( bStartSouthRecursion)
 	{
-		SouthTerrainGenerated->RecursiveActiveCheck(IndexFromActiveLandscape+1,EDirectionException::VE_South,ViewDistance);
+		SouthTerrainGenerated->RecursiveActiveCheck(IndexFromActiveLandscape+1,EDirectionException::Ve_South,ViewDistance);
 	}
 	if(bStartWestRecursion)
 	{
-		WestTerrainGenerated->RecursiveActiveCheck(IndexFromActiveLandscape+1,EDirectionException::VE_West,ViewDistance);
+		WestTerrainGenerated->RecursiveActiveCheck(IndexFromActiveLandscape+1,EDirectionException::Ve_West,ViewDistance);
 	}
 }
 
-
-
-void AProceduralTerrainGen::GenerateSiblingLandscapes(int IndexFromActiveLandscape, EDirectionException PreviousDirectionException)
+void AProceduralTerrainGen::GenerateSiblingLandscapes(const int IndexFromActiveLandscape, const EDirectionException PreviousDirectionException)
 {
-	if(IndexFromActiveLandscape<LandscapeAmount)
+	switch (TerrainShape)
 	{
-		if(PreviousDirectionException == EDirectionException::VE_North)
+	case EComponentShapes::Ve_Plain:
 		{
-			NorthTerrainGenerated =GenerateVisibleComponent(EDirectionException::VE_North,IndexFromActiveLandscape);
-			EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::VE_East,IndexFromActiveLandscape);
-			WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::VE_West,IndexFromActiveLandscape);
+			if(IndexFromActiveLandscape<LandscapeAmount)
+			{
+				if(PreviousDirectionException == EDirectionException::Ve_North)
+				{
+					NorthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_North,IndexFromActiveLandscape);
+					EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,IndexFromActiveLandscape);
+					WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,IndexFromActiveLandscape);
 			
-			NorthTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::VE_North);
-			EastTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::VE_East);
-			WestTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1,EDirectionException::VE_West);
-		}
-		if(PreviousDirectionException == EDirectionException::VE_South)
-		{
-			SouthTerrainGenerated =GenerateVisibleComponent(EDirectionException::VE_South,IndexFromActiveLandscape);
-			EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::VE_East,IndexFromActiveLandscape);
-			WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::VE_West,IndexFromActiveLandscape);
+					NorthTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::Ve_North);
+					EastTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::Ve_East);
+					WestTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1,EDirectionException::Ve_West);
+				}
+				if(PreviousDirectionException == EDirectionException::Ve_South)
+				{
+					SouthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_South,IndexFromActiveLandscape);
+					EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,IndexFromActiveLandscape);
+					WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,IndexFromActiveLandscape);
 			
-			SouthTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::VE_South);
-			EastTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::VE_East);
-			WestTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1,EDirectionException::VE_West);
+					SouthTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::Ve_South);
+					EastTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::Ve_East);
+					WestTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1,EDirectionException::Ve_West);
 		
-		}
-		if(PreviousDirectionException == EDirectionException::VE_East)
-		{
-			EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::VE_East,IndexFromActiveLandscape);
+				}
+				if(PreviousDirectionException == EDirectionException::Ve_East)
+				{
+					EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,IndexFromActiveLandscape);
 
-			EastTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::VE_East);
-		}
-		if(PreviousDirectionException== EDirectionException::VE_West)
-		{
-			WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::VE_West,IndexFromActiveLandscape);
+					EastTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::Ve_East);
+				}
+				if(PreviousDirectionException== EDirectionException::Ve_West)
+				{
+					WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,IndexFromActiveLandscape);
 
-			WestTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1,EDirectionException::VE_West);
-		}
-		if(PreviousDirectionException==EDirectionException::VE_None)
-		{
-			NorthTerrainGenerated =GenerateVisibleComponent(EDirectionException::VE_North,IndexFromActiveLandscape);
-			SouthTerrainGenerated =GenerateVisibleComponent(EDirectionException::VE_South,IndexFromActiveLandscape);
-			EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::VE_East,IndexFromActiveLandscape);
-			WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::VE_West,IndexFromActiveLandscape);
+					WestTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1,EDirectionException::Ve_West);
+				}
+				if(PreviousDirectionException==EDirectionException::Ve_None)
+				{
+					NorthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_North,IndexFromActiveLandscape);
+					SouthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_South,IndexFromActiveLandscape);
+					EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,IndexFromActiveLandscape);
+					WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,IndexFromActiveLandscape);
 			
-			NorthTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::VE_North);
-			SouthTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::VE_South);
-			EastTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::VE_East);
-			WestTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1,EDirectionException::VE_West);
+					NorthTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::Ve_North);
+					SouthTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::Ve_South);
+					EastTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::Ve_East);
+					WestTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1,EDirectionException::Ve_West);
+				}
+			}
+			break;
 		}
+	case EComponentShapes::Ve_Cube:
+		{
+			if(IndexFromActiveLandscape<ConvertEnumSubSectionsToInteger(TerrainSubSections))
+			{
+				if(PreviousDirectionException == EDirectionException::Ve_North)
+				{
+					if(TerrainShapeSide==EShapeSide::Ve_Top)
+					{
+						EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,1,EShapeSide::Ve_Right);
+
+						EastTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_East);
+					}
+					NorthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_North,IndexFromActiveLandscape+1,TerrainShapeSide);
+					WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,TerrainShapeSide);
+			
+					NorthTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::Ve_North);
+					WestTerrainGenerated->GenerateSiblingLandscapes(2,EDirectionException::Ve_West);
+				}
+				if(PreviousDirectionException == EDirectionException::Ve_South)
+				{
+					SouthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_South,IndexFromActiveLandscape+1,TerrainShapeSide);
+					WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,TerrainShapeSide);
+			
+					SouthTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::Ve_South);
+					WestTerrainGenerated->GenerateSiblingLandscapes(2,EDirectionException::Ve_West);
+		
+				}
+				if(PreviousDirectionException == EDirectionException::Ve_East)
+				{
+					EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,IndexFromActiveLandscape+1,TerrainShapeSide);
+
+					EastTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::Ve_East);
+				}
+				if(PreviousDirectionException== EDirectionException::Ve_West)
+				{
+					WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,IndexFromActiveLandscape+1,TerrainShapeSide);
+
+					WestTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1,EDirectionException::Ve_West);
+				}
+				if(PreviousDirectionException==EDirectionException::Ve_None)
+				{
+					NorthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_North,2,EShapeSide::Ve_Top);
+					SouthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_South,1,EShapeSide::Ve_Front);
+					EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,1,EShapeSide::Ve_Right);
+					WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,EShapeSide::Ve_Top);
+			
+					NorthTerrainGenerated->GenerateSiblingLandscapes(2, EDirectionException::Ve_North);
+					SouthTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_South);
+					EastTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_East);
+					WestTerrainGenerated->GenerateSiblingLandscapes(2,EDirectionException::Ve_West);
+				
+				}
+			}
+			else
+			{
+				if(PreviousDirectionException == EDirectionException::Ve_North)
+				{
+					if(TerrainShapeSide == EShapeSide::Ve_Top)
+					{
+						NorthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_North,1,EShapeSide::Ve_Back);
+						WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,EShapeSide::Ve_Top);
+						EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,1,EShapeSide::Ve_Right);
+
+						EastTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_East);
+						NorthTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_North);
+						WestTerrainGenerated->GenerateSiblingLandscapes(2,EDirectionException::Ve_West);
+					}
+					else if(TerrainSubSections !=ESubSections::Ve_One)
+					{
+						WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,EShapeSide::Ve_Back);
+
+						WestTerrainGenerated->GenerateSiblingLandscapes(2,EDirectionException::Ve_West);
+					}
+				}
+				if(PreviousDirectionException == EDirectionException::Ve_South)
+				{
+					if(TerrainShapeSide==EShapeSide::Ve_Front)
+					{
+						if(TerrainSubSections !=ESubSections::Ve_One)
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,EShapeSide::Ve_Front);
+
+							WestTerrainGenerated->GenerateSiblingLandscapes(2,EDirectionException::Ve_West);
+						}
+						SouthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_South,1,EShapeSide::Ve_Bottom);
+			
+						SouthTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_South);
+					}
+					else if(TerrainSubSections !=ESubSections::Ve_One)
+					{
+						WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,EShapeSide::Ve_Bottom);
+
+						WestTerrainGenerated->GenerateSiblingLandscapes(2,EDirectionException::Ve_West);
+					}
+				}
+				if(PreviousDirectionException == EDirectionException::Ve_West)
+				{
+					if(TerrainShapeSide==EShapeSide::Ve_Top)
+					{
+						WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,1,EShapeSide::Ve_Left);
+
+						WestTerrainGenerated->GenerateSiblingLandscapes(1,EDirectionException::Ve_West);
+					}
+				}
+				if(PreviousDirectionException==EDirectionException::Ve_None)
+				{
+					NorthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_North,1,EShapeSide::Ve_Back);
+					SouthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_South,1,EShapeSide::Ve_Front);
+					EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,1,EShapeSide::Ve_Right);
+					WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,1,EShapeSide::Ve_Left);
+			
+					NorthTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_North);
+					SouthTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_South);
+					EastTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_East);
+					WestTerrainGenerated->GenerateSiblingLandscapes(1,EDirectionException::Ve_West);
+			
+					}
+			}
+			break;
+		}
+	case EComponentShapes::Ve_Sphere:
+		{
+			break;
+		}
+	default: ;
 	}
+	
 }
 
-void AProceduralTerrainGen::GenerateCurrentLandscape()
+void AProceduralTerrainGen::GenerateCurrentLandscape() const
 {
 	/**Set Noise Resolution*/
 	ProceduralTerrain->SetNoiseResolution(NoiseResolution);
@@ -400,15 +529,26 @@ void AProceduralTerrainGen::GenerateCurrentLandscape()
 	ProceduralTerrain->SetDistanceFunction(CellularDistanceFunction);
 	/** Set cellular return type. */
 	ProceduralTerrain->SetReturnType(CellularReturnType);
-	ProceduralTerrain->GenerateMap(NoiseComponentStartLocation);
+	switch (TerrainShape)
+	{
+	case EComponentShapes::Ve_Plain:
+		{
+			ProceduralTerrain->GenerateMap(NoiseComponentStartLocation);
+			break;
+		}
+	case EComponentShapes::Ve_Cube:
+		{
+			ProceduralTerrain->GenerateMap(NoiseComponentStartLocation,TerrainShape,TerrainShapeSide,TerrainSubSections);
+			break;
+		}
+	case EComponentShapes::Ve_Sphere:
+		{
+			break;
+		}
+	default: ;
+	}
 }
 
-// Called every frame
-void AProceduralTerrainGen::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-}
 void AProceduralTerrainGen::RecursiveDelete()
 {
 	if(EastTerrainGenerated)
@@ -459,17 +599,7 @@ void AProceduralTerrainGen::RecursiveDelete()
 	}
 }
 
-void AProceduralTerrainGen::SetChunkViewDistance(int ChunkDistance)
-{
-	ChunkViewDistance=ChunkDistance;
-}
-
-void AProceduralTerrainGen::SetNoiseSamplingPerLine(int NoiseSampling)
-{
-	NoiseSamplesPerLine=NoiseSampling;
-}
-
-void AProceduralTerrainGen::MakeVisibleComponent(AProceduralTerrainGen* TerrainGen,int IndexFromActiveLandscape)
+void AProceduralTerrainGen::MakeVisibleComponent(AProceduralTerrainGen* TerrainGen, const int IndexFromActiveLandscape)
 {
 	if(TerrainGen->ProceduralTerrain->IsGenerated())
 	{
@@ -486,35 +616,99 @@ void AProceduralTerrainGen::MakeVisibleComponent(AProceduralTerrainGen* TerrainG
 	TerrainGen->CurrentIndexFromActiveLandscape=IndexFromActiveLandscape;
 }
 
-AProceduralTerrainGen* AProceduralTerrainGen::GenerateVisibleComponent(EDirectionException PreviousDirectionException,
-	int IndexFromActiveLandscape)
+AProceduralTerrainGen* AProceduralTerrainGen::GenerateVisibleComponent(const EDirectionException PreviousDirectionException,const int IndexFromActiveLandscape, const EShapeSide TerrainSide)
 {
 	AProceduralTerrainGen* TerrainGen;
+	
 	switch (PreviousDirectionException)
 	{
-	case EDirectionException::VE_North:
+	case EDirectionException::Ve_North:
 		{
-			TerrainGen =CreateProceduralTerrain(GetActorLocation().X + TotalSizeToGenerate-NoiseResolution, GetActorLocation().Y,IndexFromActiveLandscape, PreviousDirectionException);
+			if(TerrainSide==EShapeSide::Ve_Top)
+			{
+				TerrainGen =CreateProceduralTerrain(GetActorLocation().X + TotalSizeToGenerate-NoiseResolution, GetActorLocation().Y, GetActorLocation().Z,IndexFromActiveLandscape, PreviousDirectionException,TerrainSide);
+			}
+			else
+			{
+				TerrainGen =CreateProceduralTerrain(GetActorLocation().X, GetActorLocation().Y,GetActorLocation().Z - TotalSizeToGenerate+NoiseResolution,IndexFromActiveLandscape, PreviousDirectionException,TerrainSide);
+			}
+			if(IndexFromActiveLandscape==1)
+			{
+				TerrainGen->ProceduralTerrain->SetEdgeOfGeometricObject(EEdgeOfGeometricObject::Ve_NorthStart);
+			}
+			else if(IndexFromActiveLandscape==ConvertEnumSubSectionsToInteger(TerrainSubSections))
+			{
+				TerrainGen->ProceduralTerrain->SetEdgeOfGeometricObject(EEdgeOfGeometricObject::Ve_NorthEnd);
+			}
+			else
+			{
+				TerrainGen->ProceduralTerrain->SetEdgeOfGeometricObject(EEdgeOfGeometricObject::Ve_NorthMiddle);
+			}
 			break;
 		}
-	case EDirectionException::VE_South:
+	case EDirectionException::Ve_South:
 		{
-			TerrainGen =CreateProceduralTerrain(GetActorLocation().X - TotalSizeToGenerate+NoiseResolution, GetActorLocation().Y,IndexFromActiveLandscape,PreviousDirectionException);
+			if(TerrainSide==EShapeSide::Ve_Top)
+			{
+				TerrainGen =CreateProceduralTerrain(GetActorLocation().X - TotalSizeToGenerate+NoiseResolution, GetActorLocation().Y,GetActorLocation().Z,IndexFromActiveLandscape,PreviousDirectionException,TerrainSide);
+			}
+			else if(TerrainSide==EShapeSide::Ve_Front)
+			{
+				TerrainGen =CreateProceduralTerrain(GetActorLocation().X, GetActorLocation().Y,GetActorLocation().Z - TotalSizeToGenerate+NoiseResolution,IndexFromActiveLandscape, PreviousDirectionException,TerrainSide);
+			}
+			else
+			{
+				if(IndexFromActiveLandscape==1)
+				{
+					TerrainGen =CreateProceduralTerrain(GetActorLocation().X, GetActorLocation().Y, GetActorLocation().Z,IndexFromActiveLandscape, PreviousDirectionException,TerrainSide);
+				}
+				else
+				{
+					TerrainGen =CreateProceduralTerrain(GetActorLocation().X + TotalSizeToGenerate-NoiseResolution, GetActorLocation().Y, GetActorLocation().Z,IndexFromActiveLandscape, PreviousDirectionException,TerrainSide);
+				}
+			}
+			if(IndexFromActiveLandscape==1)
+			{
+				TerrainGen->ProceduralTerrain->SetEdgeOfGeometricObject(EEdgeOfGeometricObject::Ve_SouthStart);
+			}
+			else if(IndexFromActiveLandscape==ConvertEnumSubSectionsToInteger(TerrainSubSections))
+			{
+				TerrainGen->ProceduralTerrain->SetEdgeOfGeometricObject(EEdgeOfGeometricObject::Ve_SouthEnd);
+			}
+			else
+			{
+				TerrainGen->ProceduralTerrain->SetEdgeOfGeometricObject(EEdgeOfGeometricObject::Ve_SouthMiddle);
+			}
 			break;
 		}
-	case EDirectionException::VE_East:
+	case EDirectionException::Ve_East:
 		{
-			TerrainGen =CreateProceduralTerrain(GetActorLocation().X, GetActorLocation().Y+ TotalSizeToGenerate-NoiseResolution,IndexFromActiveLandscape,PreviousDirectionException);
+			if(TerrainSide==EShapeSide::Ve_Top)
+			{
+				TerrainGen =CreateProceduralTerrain(GetActorLocation().X, GetActorLocation().Y+ TotalSizeToGenerate-NoiseResolution,GetActorLocation().Z,IndexFromActiveLandscape,PreviousDirectionException,TerrainSide);
+			}
+			else
+			{
+				TerrainGen =CreateProceduralTerrain(GetActorLocation().X, GetActorLocation().Y,GetActorLocation().Z - TotalSizeToGenerate+NoiseResolution,IndexFromActiveLandscape, PreviousDirectionException,TerrainSide);
+				
+			}
 			break;
 		}
-	case EDirectionException::VE_West:
+	case EDirectionException::Ve_West:
 		{
-			TerrainGen =CreateProceduralTerrain(GetActorLocation().X, GetActorLocation().Y- TotalSizeToGenerate+NoiseResolution,IndexFromActiveLandscape,PreviousDirectionException);
+			if(TerrainSide!=EShapeSide::Ve_Left)
+			{
+				TerrainGen =CreateProceduralTerrain(GetActorLocation().X, GetActorLocation().Y- TotalSizeToGenerate+NoiseResolution,GetActorLocation().Z,IndexFromActiveLandscape,PreviousDirectionException,TerrainSide);
+			}
+			else
+			{
+				TerrainGen =CreateProceduralTerrain(GetActorLocation().X, GetActorLocation().Y,GetActorLocation().Z - TotalSizeToGenerate+NoiseResolution,IndexFromActiveLandscape, PreviousDirectionException,TerrainSide);
+			}
 			break;
 		}
 	default:
 		{
-			TerrainGen =CreateProceduralTerrain(GetActorLocation().X, GetActorLocation().Y,IndexFromActiveLandscape,PreviousDirectionException);
+			TerrainGen =CreateProceduralTerrain(GetActorLocation().X, GetActorLocation().Y,GetActorLocation().Z,IndexFromActiveLandscape,PreviousDirectionException,TerrainSide);
 		}
 	}
 	if(TerrainGen)
@@ -525,14 +719,14 @@ AProceduralTerrainGen* AProceduralTerrainGen::GenerateVisibleComponent(EDirectio
 	return TerrainGen;
 }
 
-AProceduralTerrainGen* AProceduralTerrainGen::CreateProceduralTerrain(int PosX, int PosY, int CurrentLandscapeIndex, EDirectionException PreviousDirectionException)
+AProceduralTerrainGen* AProceduralTerrainGen::CreateProceduralTerrain(const int PosX, const int PosY, const int PosZ, const int CurrentLandscapeIndex, const EDirectionException PreviousDirectionException, const EShapeSide TerrainSide)
 {
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = this;
 	SpawnParams.Instigator = GetInstigator();
 	
 	AProceduralTerrainGen* ProceduralTerrainGen = GetWorld()->SpawnActor<AProceduralTerrainGen>(
-		FVector(PosX,PosY, GetActorLocation().Z),GetActorRotation(),SpawnParams);
+		FVector(PosX,PosY,PosZ),GetActorRotation(),SpawnParams);
 	
 	ProceduralTerrainGen->SetLandscapeAmount(LandscapeAmount);
 	if(ProceduralTerrainGen->GetCurrentIndexFromActiveLandscape()!= 0 && ProceduralTerrainGen->GetCurrentIndexFromActiveLandscape()>CurrentLandscapeIndex)
@@ -541,26 +735,59 @@ AProceduralTerrainGen* AProceduralTerrainGen::CreateProceduralTerrain(int PosX, 
 	}
 	ProceduralTerrainGen->AttachToActor(this,FAttachmentTransformRules::KeepWorldTransform);
 	InitializeVariable(ProceduralTerrainGen);
+	ProceduralTerrainGen->SetTerrainShapeSide(TerrainSide);
 	switch (PreviousDirectionException)
 	{
-	case EDirectionException::VE_North:
+	case EDirectionException::Ve_North:
 		{
-			ProceduralTerrainGen->NoiseComponentStartLocation = NoiseComponentStartLocation+ FVector(NoiseSamplesPerLine-1,0,0);
+			if(TerrainSide==EShapeSide::Ve_Top)
+			{
+				ProceduralTerrainGen->NoiseComponentStartLocation = NoiseComponentStartLocation+ FVector(NoiseSamplesPerLine-1,0,0);
+			}
+			else
+			{
+				ProceduralTerrainGen->NoiseComponentStartLocation = NoiseComponentStartLocation+ FVector(0,0,-(NoiseSamplesPerLine-1));
+			}
 			break;
 		}
-	case EDirectionException::VE_South:
+	case EDirectionException::Ve_South:
 		{
-			ProceduralTerrainGen->NoiseComponentStartLocation = NoiseComponentStartLocation+ FVector(-(NoiseSamplesPerLine-1),0,0);
+			if(TerrainSide==EShapeSide::Ve_Top)
+			{
+				ProceduralTerrainGen->NoiseComponentStartLocation = NoiseComponentStartLocation+ FVector(-(NoiseSamplesPerLine-1),0,0);
+			}
+			else if(TerrainSide==EShapeSide::Ve_Front)
+			{
+				ProceduralTerrainGen->NoiseComponentStartLocation = NoiseComponentStartLocation+ FVector(0,0,-(NoiseSamplesPerLine-1));
+			}
+			else
+			{
+				ProceduralTerrainGen->NoiseComponentStartLocation = NoiseComponentStartLocation+  FVector(NoiseSamplesPerLine-1,0,0);
+			}
 			break;
 		}
-	case EDirectionException::VE_East:
+	case EDirectionException::Ve_East:
 		{
-			ProceduralTerrainGen->NoiseComponentStartLocation = NoiseComponentStartLocation+ FVector(0,NoiseSamplesPerLine-1,0);
+			if(TerrainSide==EShapeSide::Ve_Top)
+			{
+				ProceduralTerrainGen->NoiseComponentStartLocation = NoiseComponentStartLocation+ FVector(0,NoiseSamplesPerLine-1,0);
+			}
+			else
+			{
+				ProceduralTerrainGen->NoiseComponentStartLocation = NoiseComponentStartLocation+ FVector(0,0,-(NoiseSamplesPerLine-1));
+			}
 			break;
 		}
-	case EDirectionException::VE_West:
+	case EDirectionException::Ve_West:
 		{
-			ProceduralTerrainGen->NoiseComponentStartLocation = NoiseComponentStartLocation+ FVector(0,-(NoiseSamplesPerLine-1),0);
+			if(TerrainSide!=EShapeSide::Ve_Left)
+			{
+				ProceduralTerrainGen->NoiseComponentStartLocation = NoiseComponentStartLocation+ FVector(0,-(NoiseSamplesPerLine-1),0);
+			}
+			else
+			{
+				ProceduralTerrainGen->NoiseComponentStartLocation = NoiseComponentStartLocation+ FVector(0,0,-(NoiseSamplesPerLine-1));
+			}
 			break;
 		}
 	default:
@@ -573,17 +800,27 @@ AProceduralTerrainGen* AProceduralTerrainGen::CreateProceduralTerrain(int PosX, 
 	return ProceduralTerrainGen;
 }
 
-void AProceduralTerrainGen::SetCurrentIndexFromActiveLandscape(int Index)
+void AProceduralTerrainGen::SetChunkViewDistance(const int ChunkDistance)
+{
+	ChunkViewDistance=ChunkDistance;
+}
+
+void AProceduralTerrainGen::SetNoiseSamplingPerLine(const int NoiseSampling)
+{
+	NoiseSamplesPerLine=NoiseSampling;
+}
+
+void AProceduralTerrainGen::SetCurrentIndexFromActiveLandscape(const int Index)
 {
 	CurrentIndexFromActiveLandscape=Index;
 }
 
-int AProceduralTerrainGen::GetCurrentIndexFromActiveLandscape()
+int AProceduralTerrainGen::GetCurrentIndexFromActiveLandscape() const
 {
 	return CurrentIndexFromActiveLandscape;
 }
 
-void AProceduralTerrainGen::SetLandscapeAmount(int LandscapeViewAmount)
+void AProceduralTerrainGen::SetLandscapeAmount(const int LandscapeViewAmount)
 {
 	LandscapeAmount=LandscapeViewAmount;
 }
@@ -643,27 +880,27 @@ void AProceduralTerrainGen::SetReturnType(const EFastNoise_CellularReturnType Ne
 	CellularReturnType=NewCellularReturnType;
 }
 
-void AProceduralTerrainGen::SetNoiseResolution(int NewNoiseResolution)
+void AProceduralTerrainGen::SetNoiseResolution(const int NewNoiseResolution)
 {
 	NoiseResolution=NewNoiseResolution;
 }
 
-void AProceduralTerrainGen::SetTotalSizeToGenerate(int NewTotalSizeToGenerate)
+void AProceduralTerrainGen::SetTotalSizeToGenerate(const int NewTotalSizeToGenerate)
 {
 	TotalSizeToGenerate=NewTotalSizeToGenerate;
 }
 
-void AProceduralTerrainGen::SetNoiseInputScale(float NewNoiseInputScale)
+void AProceduralTerrainGen::SetNoiseInputScale(const float NewNoiseInputScale)
 {
 	NoiseInputScale=NewNoiseInputScale;
 }
 
-void AProceduralTerrainGen::SetNoiseOutputScale(float NewNoiseOutputScale)
+void AProceduralTerrainGen::SetNoiseOutputScale(const float NewNoiseOutputScale)
 {
 	NoiseOutputScale=NewNoiseOutputScale;
 }
 
-void AProceduralTerrainGen::InitializeVariable(AProceduralTerrainGen* Proc)
+void AProceduralTerrainGen::InitializeVariable(AProceduralTerrainGen* Proc) const
 {
 	/**Set Noise Resolution*/
 	Proc->SetNoiseResolution(NoiseResolution);
@@ -699,5 +936,24 @@ void AProceduralTerrainGen::InitializeVariable(AProceduralTerrainGen* Proc)
 	Proc->SetChunkViewDistance(ChunkViewDistance);
 	/**Set the Noise Sampling Per Line*/
 	Proc->SetNoiseSamplingPerLine(NoiseSamplesPerLine);
+	/**Set the Shape Side*/
+	Proc->SetTerrainShape(TerrainShape);
+	/**Set the Component shape*/
+	Proc->SetTerrainSubSections(TerrainSubSections);
 	
+}
+
+int AProceduralTerrainGen::ConvertEnumSubSectionsToInteger(const ESubSections AShapeSubSections)
+{
+	switch (AShapeSubSections)
+	{
+	case ESubSections::Ve_One: return 1;
+	case ESubSections::Ve_Two: return 2;
+	case ESubSections::Ve_Four: return 4;
+	case ESubSections::Ve_Eight: return 8;
+	case ESubSections::Ve_Sixteen: return 16;
+	case ESubSections::Ve_ThirtyTwo: return 32;
+	case ESubSections::Ve_SixtyFour: return 64;
+	default: return 1;
+	}
 }
