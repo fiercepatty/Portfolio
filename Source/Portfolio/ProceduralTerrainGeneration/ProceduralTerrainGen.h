@@ -117,14 +117,15 @@ public:
 	void SetTerrainShapeSide(EShapeSide const ShapeSide){TerrainShapeSide=ShapeSide;}
 
 	void SetTerrainSubSections(ESubSections const SubSections) {TerrainSubSections=SubSections;}
+	
+	void SetTerrainEdgeOfGeometry(const EEdgeOfGeometricObject EdgeOfGeometry) {TerrainEdgeOfGeometry=EdgeOfGeometry;}
 
 
 private:
 	static void MakeVisibleComponent(AProceduralTerrainGen* TerrainGen, int IndexFromActiveLandscape );
+	AProceduralTerrainGen* GenerateVisibleComponent(EDirectionException PreviousDirectionException,int IndexFromActiveLandscape, EShapeSide TerrainSide= EShapeSide::Ve_Top,EEdgeOfGeometricObject TerrainEdge = EEdgeOfGeometricObject::Ve_None);
 
-	AProceduralTerrainGen* GenerateVisibleComponent(EDirectionException PreviousDirectionException,int IndexFromActiveLandscape, EShapeSide TerrainSide= EShapeSide::Ve_Top);
-
-	AProceduralTerrainGen* CreateProceduralTerrain(int PosX, int PosY,int PosZ, int CurrentLandscapeIndex, EDirectionException PreviousDirectionException, EShapeSide TerrainSide);
+	AProceduralTerrainGen* CreateProceduralTerrain(int PosX, int PosY,int PosZ, int CurrentLandscapeIndex, EDirectionException PreviousDirectionException, EShapeSide TerrainSide,EEdgeOfGeometricObject TerrainEdge);
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings", meta = (AllowPrivateAccess = "true"))
 	AProceduralTerrainGen* EastTerrainGenerated;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings", meta = (AllowPrivateAccess = "true"))
@@ -137,6 +138,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Noise Settings", meta = (AllowPrivateAccess = "true"))
 	FVector NoiseComponentStartLocation;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings", meta = (AllowPrivateAccess = "true"))
+	EEdgeOfGeometricObject TerrainEdgeOfGeometry;
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings", meta = (AllowPrivateAccess = "true"))
 	EComponentShapes TerrainShape;
 

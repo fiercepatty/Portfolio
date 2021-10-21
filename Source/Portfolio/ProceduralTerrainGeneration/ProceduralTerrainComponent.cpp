@@ -72,7 +72,7 @@ void UProceduralTerrainComponent::GenerateVertices()
 								{
 								case EEdgeOfGeometricObject::Ve_NorthStart:
 									{
-										if(y==NoiseSamplesPerLine-1 || x == 0)
+										if(y==NoiseSamplesPerLine-1 || x==0)
 										{
 											NoiseResult = 0;
 										}
@@ -88,7 +88,7 @@ void UProceduralTerrainComponent::GenerateVertices()
 									}
 								case EEdgeOfGeometricObject::Ve_NorthEnd:
 									{
-										if(y==0 || x == 0)
+										if(y==NoiseSamplesPerLine-1 || x==NoiseSamplesPerLine-1)
 										{
 											NoiseResult = 0;
 										}
@@ -96,17 +96,17 @@ void UProceduralTerrainComponent::GenerateVertices()
 									}
 								case EEdgeOfGeometricObject::Ve_WestBottom:
 									{
-										if(y==NoiseSamplesPerLine-1)
+										if(x==0)
 										{
-											NoiseResult=0;
+											NoiseResult = 0;
 										}
 										break;
 									}
 								case EEdgeOfGeometricObject::Ve_WestTop:
 									{
-										if(y==0)
+										if(x==NoiseSamplesPerLine-1)
 										{
-											NoiseResult=0;
+											NoiseResult = 0;
 										}
 										break;
 									}
@@ -121,7 +121,7 @@ void UProceduralTerrainComponent::GenerateVertices()
 
 								case EEdgeOfGeometricObject::Ve_WestEndBottom:
 									{
-										if(y==NoiseSamplesPerLine-1 || x == NoiseSamplesPerLine-1)
+										if(y==0 || x == 0)
 										{
 											NoiseResult = 0;
 										}
@@ -130,9 +130,17 @@ void UProceduralTerrainComponent::GenerateVertices()
 
 								case EEdgeOfGeometricObject::Ve_WestEndMiddle:
 									{
-										if(x == NoiseSamplesPerLine-1) 
+										if(y==0) 
 										{
 											NoiseResult = 0;
+										}
+										break;
+									}
+								case EEdgeOfGeometricObject::Ve_AllEnds:
+									{
+										if(y==0 || x==0 || y== NoiseSamplesPerLine-1 || x == NoiseSamplesPerLine-1)
+										{
+											NoiseResult=0;
 										}
 										break;
 									}
@@ -160,7 +168,7 @@ void UProceduralTerrainComponent::GenerateVertices()
 								{
 								case EEdgeOfGeometricObject::Ve_SouthStart:
 									{
-										if(y==NoiseSamplesPerLine-1 || x == 0)
+										if(y==NoiseSamplesPerLine-1 || x==NoiseSamplesPerLine-1)
 										{
 											NoiseResult = 0;
 										}
@@ -176,7 +184,7 @@ void UProceduralTerrainComponent::GenerateVertices()
 									}
 								case EEdgeOfGeometricObject::Ve_SouthEnd:
 									{
-										if(y==0 || x == 0)
+										if(y==NoiseSamplesPerLine-1 || x==0)
 										{
 											NoiseResult = 0;
 										}
@@ -184,17 +192,17 @@ void UProceduralTerrainComponent::GenerateVertices()
 									}
 								case EEdgeOfGeometricObject::Ve_WestBottom:
 									{
-										if(y==NoiseSamplesPerLine-1)
+										if(x==0)
 										{
-											NoiseResult=0;
+											NoiseResult = 0;
 										}
 										break;
 									}
 								case EEdgeOfGeometricObject::Ve_WestTop:
 									{
-										if(y==0)
+										if(x==NoiseSamplesPerLine-1)
 										{
-											NoiseResult=0;
+											NoiseResult = 0;
 										}
 										break;
 									}
@@ -209,7 +217,7 @@ void UProceduralTerrainComponent::GenerateVertices()
 
 								case EEdgeOfGeometricObject::Ve_WestEndBottom:
 									{
-										if(y==NoiseSamplesPerLine-1 || x == NoiseSamplesPerLine-1)
+										if(y==0 || x == 0)
 										{
 											NoiseResult = 0;
 										}
@@ -218,9 +226,17 @@ void UProceduralTerrainComponent::GenerateVertices()
 
 								case EEdgeOfGeometricObject::Ve_WestEndMiddle:
 									{
-										if(x == NoiseSamplesPerLine-1) 
+										if(y==0) 
 										{
 											NoiseResult = 0;
+										}
+										break;
+									}
+								case EEdgeOfGeometricObject::Ve_AllEnds:
+									{
+										if(y==0 || x==0 || y== NoiseSamplesPerLine-1 || x == NoiseSamplesPerLine-1)
+										{
+											NoiseResult=0;
 										}
 										break;
 									}
@@ -247,7 +263,7 @@ void UProceduralTerrainComponent::GenerateVertices()
 								{
 								case EEdgeOfGeometricObject::Ve_WestBottom:
 									{
-										if(z==NoiseSamplesPerLine-1)
+										if(x==0)
 										{
 											NoiseResult=0;
 										}
@@ -255,7 +271,7 @@ void UProceduralTerrainComponent::GenerateVertices()
 									}
 								case EEdgeOfGeometricObject::Ve_WestTop:
 									{
-										if(z==0)
+										if(x==NoiseSamplesPerLine-1)
 										{
 											NoiseResult=0;
 										}
@@ -272,7 +288,7 @@ void UProceduralTerrainComponent::GenerateVertices()
 
 								case EEdgeOfGeometricObject::Ve_WestEndBottom:
 									{
-										if(z==NoiseSamplesPerLine-1 || x == NoiseSamplesPerLine-1)
+										if(z==0 || x == 0)
 										{
 											NoiseResult = 0;
 										}
@@ -281,9 +297,17 @@ void UProceduralTerrainComponent::GenerateVertices()
 
 								case EEdgeOfGeometricObject::Ve_WestEndMiddle:
 									{
-										if(x == NoiseSamplesPerLine-1) 
+										if(z == 0) 
 										{
 											NoiseResult = 0;
+										}
+										break;
+									}
+								case EEdgeOfGeometricObject::Ve_AllEnds:
+									{
+										if(z==0 || x==0 || z== NoiseSamplesPerLine-1 || x == NoiseSamplesPerLine-1)
+										{
+											NoiseResult=0;
 										}
 										break;
 									}
@@ -308,23 +332,23 @@ void UProceduralTerrainComponent::GenerateVertices()
 							{
 								switch (EdgeOfGeometricObject)
 								{
-								case EEdgeOfGeometricObject::Ve_EastBottom:
-									{
-										if(z==NoiseSamplesPerLine-1)
-										{
-											NoiseResult=0;
-										}
-										break;
-									}
 								case EEdgeOfGeometricObject::Ve_EastTop:
 									{
-										if(z==0)
+										if(x==0)
 										{
 											NoiseResult=0;
 										}
 										break;
 									}
-								case EEdgeOfGeometricObject::Ve_EastEndTop:
+								case EEdgeOfGeometricObject::Ve_EastBottom:
+									{
+										if(x==NoiseSamplesPerLine-1)
+										{
+											NoiseResult=0;
+										}
+										break;
+									}
+								case EEdgeOfGeometricObject::Ve_EastEndBottom:
 									{
 										if(z==0 || x == NoiseSamplesPerLine-1)
 										{
@@ -333,9 +357,9 @@ void UProceduralTerrainComponent::GenerateVertices()
 										break;
 									}
 
-								case EEdgeOfGeometricObject::Ve_EastEndBottom:
+								case EEdgeOfGeometricObject::Ve_EastEndTop:
 									{
-										if(z==NoiseSamplesPerLine-1 || x == NoiseSamplesPerLine-1)
+										if(z==0 || x == 0)
 										{
 											NoiseResult = 0;
 										}
@@ -344,9 +368,17 @@ void UProceduralTerrainComponent::GenerateVertices()
 
 								case EEdgeOfGeometricObject::Ve_EastEndMiddle:
 									{
-										if(x == NoiseSamplesPerLine-1) 
+										if(z == 0) 
 										{
 											NoiseResult = 0;
+										}
+										break;
+									}
+								case EEdgeOfGeometricObject::Ve_AllEnds:
+									{
+										if(z==0 || x==0 || z== NoiseSamplesPerLine-1 || x == NoiseSamplesPerLine-1)
+										{
+											NoiseResult=0;
 										}
 										break;
 									}
@@ -373,9 +405,9 @@ void UProceduralTerrainComponent::GenerateVertices()
 								{
 								case EEdgeOfGeometricObject::Ve_SouthStart:
 									{
-										if(y==NoiseSamplesPerLine-1 || z == 0)
+										if(y ==NoiseSamplesPerLine-1 || z == NoiseSamplesPerLine-1)
 										{
-											NoiseResult = 0;
+											NoiseResult=0;
 										}
 										break;
 									}
@@ -389,7 +421,7 @@ void UProceduralTerrainComponent::GenerateVertices()
 									}
 								case EEdgeOfGeometricObject::Ve_SouthEnd:
 									{
-										if(y==0 || z == 0)
+										if(y==NoiseSamplesPerLine-1 || z == 0)
 										{
 											NoiseResult = 0;
 										}
@@ -397,7 +429,7 @@ void UProceduralTerrainComponent::GenerateVertices()
 									}
 								case EEdgeOfGeometricObject::Ve_WestBottom:
 									{
-										if(y==NoiseSamplesPerLine-1)
+										if(z==0)
 										{
 											NoiseResult=0;
 										}
@@ -405,7 +437,7 @@ void UProceduralTerrainComponent::GenerateVertices()
 									}
 								case EEdgeOfGeometricObject::Ve_WestTop:
 									{
-										if(y==0)
+										if(z==NoiseSamplesPerLine-1)
 										{
 											NoiseResult=0;
 										}
@@ -422,7 +454,7 @@ void UProceduralTerrainComponent::GenerateVertices()
 
 								case EEdgeOfGeometricObject::Ve_WestEndBottom:
 									{
-										if(y==NoiseSamplesPerLine-1 || z == NoiseSamplesPerLine-1)
+										if(y==0 || z == 0)
 										{
 											NoiseResult = 0;
 										}
@@ -431,9 +463,17 @@ void UProceduralTerrainComponent::GenerateVertices()
 
 								case EEdgeOfGeometricObject::Ve_WestEndMiddle:
 									{
-										if(z == NoiseSamplesPerLine-1) 
+										if(y==0) 
 										{
 											NoiseResult = 0;
+										}
+										break;
+									}
+								case EEdgeOfGeometricObject::Ve_AllEnds:
+									{
+										if(y==0 || z==0 || y== NoiseSamplesPerLine-1 || z == NoiseSamplesPerLine-1)
+										{
+											NoiseResult=0;
 										}
 										break;
 									}
@@ -460,15 +500,15 @@ void UProceduralTerrainComponent::GenerateVertices()
 								{
 								case EEdgeOfGeometricObject::Ve_NorthStart:
 									{
-										if(y==NoiseSamplesPerLine-1 || z == 0)
+										if(y ==0 || z == NoiseSamplesPerLine-1)
 										{
-											NoiseResult = 0;
+											NoiseResult=0;
 										}
 										break;
 									}
 								case EEdgeOfGeometricObject::Ve_NorthMiddle:
 									{
-										if(y==NoiseSamplesPerLine-1)
+										if(y==0)
 										{
 											NoiseResult = 0;
 										}
@@ -484,7 +524,7 @@ void UProceduralTerrainComponent::GenerateVertices()
 									}
 								case EEdgeOfGeometricObject::Ve_WestBottom:
 									{
-										if(y==NoiseSamplesPerLine-1)
+										if(z==NoiseSamplesPerLine-1)
 										{
 											NoiseResult=0;
 										}
@@ -492,7 +532,7 @@ void UProceduralTerrainComponent::GenerateVertices()
 									}
 								case EEdgeOfGeometricObject::Ve_WestTop:
 									{
-										if(y==0)
+										if(z==0)
 										{
 											NoiseResult=0;
 										}
@@ -500,7 +540,7 @@ void UProceduralTerrainComponent::GenerateVertices()
 									}
 								case EEdgeOfGeometricObject::Ve_WestEndTop:
 									{
-										if(y==0 || z == NoiseSamplesPerLine-1)
+										if(y==NoiseSamplesPerLine-1 || z == 0)
 										{
 											NoiseResult = 0;
 										}
@@ -518,9 +558,17 @@ void UProceduralTerrainComponent::GenerateVertices()
 
 								case EEdgeOfGeometricObject::Ve_WestEndMiddle:
 									{
-										if(z == NoiseSamplesPerLine-1) 
+										if(y==NoiseSamplesPerLine-1) 
 										{
 											NoiseResult = 0;
+										}
+										break;
+									}
+								case EEdgeOfGeometricObject::Ve_AllEnds:
+									{
+										if(y==0 || z==0 || y== NoiseSamplesPerLine-1 || z == NoiseSamplesPerLine-1)
+										{
+											NoiseResult=0;
 										}
 										break;
 									}
