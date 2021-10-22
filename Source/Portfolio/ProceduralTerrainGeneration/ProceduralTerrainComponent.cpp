@@ -781,7 +781,3 @@ void UProceduralTerrainComponent::SetEdgeOfGeometricObject(EEdgeOfGeometricObjec
 {
 	EdgeOfGeometricObject=GeometricObject;
 }
-
-
-
-
