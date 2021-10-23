@@ -8,7 +8,7 @@ UProceduralTerrainComponent::UProceduralTerrainComponent()
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
-	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.bCanEverTick = false;
 	ProceduralMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("GeneratedMesh"));
 	FastNoise =CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("FastNoiseWrapper"));
 	// ...
@@ -58,95 +58,40 @@ void UProceduralTerrainComponent::GenerateVertices()
 		}
 	case EComponentShapes::Ve_Cube:
 		{
+			bool bNeedToGenerateNoise=false;
+			float NoiseResult =0;
 			switch (ShapeSide)
 			{
 			case EShapeSide::Ve_Top:
 				{
+					
 					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
 					for (int y = 0; y < NoiseSamplesPerLine; y++) {
 						for (int x = 0; x < NoiseSamplesPerLine; x++) {
-							float NoiseResult = GetNoiseValueForGridCoordinates(x, y,0);
-							if(EdgeOfGeometricObject!=EEdgeOfGeometricObject::Ve_None)
+							bNeedToGenerateNoise=true;
+							if(bClampTop && x==NoiseSamplesPerLine-1)
 							{
-								switch (EdgeOfGeometricObject)
-								{
-								case EEdgeOfGeometricObject::Ve_NorthStart:
-									{
-										if(y==NoiseSamplesPerLine-1 || x==0)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_NorthMiddle:
-									{
-										if(y==NoiseSamplesPerLine-1)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_NorthEnd:
-									{
-										if(y==NoiseSamplesPerLine-1 || x==NoiseSamplesPerLine-1)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_WestBottom:
-									{
-										if(x==0)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_WestTop:
-									{
-										if(x==NoiseSamplesPerLine-1)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_WestEndTop:
-									{
-										if(y==0 || x == NoiseSamplesPerLine-1)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-
-								case EEdgeOfGeometricObject::Ve_WestEndBottom:
-									{
-										if(y==0 || x == 0)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-
-								case EEdgeOfGeometricObject::Ve_WestEndMiddle:
-									{
-										if(y==0) 
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_AllEnds:
-									{
-										if(y==0 || x==0 || y== NoiseSamplesPerLine-1 || x == NoiseSamplesPerLine-1)
-										{
-											NoiseResult=0;
-										}
-										break;
-									}
-								default: ;
-;
-								}
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bClampBottom && x==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bClampRight && y==NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bClampLeft && y==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bNeedToGenerateNoise)
+							{
+								NoiseResult = GetNoiseValueForGridCoordinates(x, y,0);
 							}
 							const int Index = GetIndexForGridCoordinates(x, y);
 							const FVector2D Position = GetPositionForGridCoordinates(x, y);
@@ -161,87 +106,30 @@ void UProceduralTerrainComponent::GenerateVertices()
 					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
 					for (int y = 0; y < NoiseSamplesPerLine; y++) {
 						for (int x = 0; x < NoiseSamplesPerLine; x++) {
-							float NoiseResult = GetNoiseValueForGridCoordinates(-x, y,0);
-							if(EdgeOfGeometricObject!=EEdgeOfGeometricObject::Ve_None)
+							bNeedToGenerateNoise=true;
+							if(bClampTop && x==NoiseSamplesPerLine-1)
 							{
-								switch (EdgeOfGeometricObject)
-								{
-								case EEdgeOfGeometricObject::Ve_SouthStart:
-									{
-										if(y==NoiseSamplesPerLine-1 || x==NoiseSamplesPerLine-1)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_SouthMiddle:
-									{
-										if(y==NoiseSamplesPerLine-1)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_SouthEnd:
-									{
-										if(y==NoiseSamplesPerLine-1 || x==0)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_WestBottom:
-									{
-										if(x==0)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_WestTop:
-									{
-										if(x==NoiseSamplesPerLine-1)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_WestEndTop:
-									{
-										if(y==0 || x == NoiseSamplesPerLine-1)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-
-								case EEdgeOfGeometricObject::Ve_WestEndBottom:
-									{
-										if(y==0 || x == 0)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-
-								case EEdgeOfGeometricObject::Ve_WestEndMiddle:
-									{
-										if(y==0) 
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_AllEnds:
-									{
-										if(y==0 || x==0 || y== NoiseSamplesPerLine-1 || x == NoiseSamplesPerLine-1)
-										{
-											NoiseResult=0;
-										}
-										break;
-									}
-								default: ;
-								}
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bClampBottom && x==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bClampRight && y==NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bClampLeft && y==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bNeedToGenerateNoise)
+							{
+								NoiseResult = GetNoiseValueForGridCoordinates(-x, y,0);
 							}
 							const int Index = GetIndexForGridCoordinates(x, y);
 							const FVector2D Position = GetPositionForGridCoordinates(x, y);
@@ -256,63 +144,30 @@ void UProceduralTerrainComponent::GenerateVertices()
 					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
 					for (int z = 0; z < NoiseSamplesPerLine; z++) {
 						for (int x = 0; x < NoiseSamplesPerLine; x++) {
-							float NoiseResult = GetNoiseValueForGridCoordinates(x, 0,z);
-							if(EdgeOfGeometricObject!=EEdgeOfGeometricObject::Ve_None)
+							bNeedToGenerateNoise=true;
+							if(bClampTop && x==NoiseSamplesPerLine-1)
 							{
-								switch (EdgeOfGeometricObject)
-								{
-								case EEdgeOfGeometricObject::Ve_WestBottom:
-									{
-										if(x==0)
-										{
-											NoiseResult=0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_WestTop:
-									{
-										if(x==NoiseSamplesPerLine-1)
-										{
-											NoiseResult=0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_WestEndTop:
-									{
-										if(z==0 || x == NoiseSamplesPerLine-1)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-
-								case EEdgeOfGeometricObject::Ve_WestEndBottom:
-									{
-										if(z==0 || x == 0)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-
-								case EEdgeOfGeometricObject::Ve_WestEndMiddle:
-									{
-										if(z == 0) 
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_AllEnds:
-									{
-										if(z==0 || x==0 || z== NoiseSamplesPerLine-1 || x == NoiseSamplesPerLine-1)
-										{
-											NoiseResult=0;
-										}
-										break;
-									}
-								default: ;
-								}
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bClampBottom && x==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bClampRight && z== NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bClampLeft && z==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bNeedToGenerateNoise)
+							{
+								NoiseResult = GetNoiseValueForGridCoordinates(x, 0,z);
 							}
 							const int Index = GetIndexForGridCoordinates(x, z);
 							const FVector2D Position = GetPositionForGridCoordinates(x, z);
@@ -327,63 +182,30 @@ void UProceduralTerrainComponent::GenerateVertices()
 					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
 					for (int z = 0; z < NoiseSamplesPerLine; z++) {
 						for (int x = 0; x < NoiseSamplesPerLine; x++) {
-							float NoiseResult = GetNoiseValueForGridCoordinates(-x,0, z);
-							if(EdgeOfGeometricObject!=EEdgeOfGeometricObject::Ve_None)
+							bNeedToGenerateNoise=true;
+							if(bClampTop && x==0)
 							{
-								switch (EdgeOfGeometricObject)
-								{
-								case EEdgeOfGeometricObject::Ve_EastTop:
-									{
-										if(x==0)
-										{
-											NoiseResult=0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_EastBottom:
-									{
-										if(x==NoiseSamplesPerLine-1)
-										{
-											NoiseResult=0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_EastEndBottom:
-									{
-										if(z==0 || x == NoiseSamplesPerLine-1)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-
-								case EEdgeOfGeometricObject::Ve_EastEndTop:
-									{
-										if(z==0 || x == 0)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-
-								case EEdgeOfGeometricObject::Ve_EastEndMiddle:
-									{
-										if(z == 0) 
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_AllEnds:
-									{
-										if(z==0 || x==0 || z== NoiseSamplesPerLine-1 || x == NoiseSamplesPerLine-1)
-										{
-											NoiseResult=0;
-										}
-										break;
-									}
-								default: ;
-								}
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bClampBottom && x==NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bClampRight && z==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bClampLeft && z==NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bNeedToGenerateNoise)
+							{
+								NoiseResult = GetNoiseValueForGridCoordinates(-x, 0,z);
 							}
 							const int Index = GetIndexForGridCoordinates(x, z);
 							const FVector2D Position = GetPositionForGridCoordinates(x, z);
@@ -398,87 +220,30 @@ void UProceduralTerrainComponent::GenerateVertices()
 					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
 					for (int y = 0; y < NoiseSamplesPerLine; y++) {
 						for (int z = 0; z < NoiseSamplesPerLine; z++) {
-							float NoiseResult = GetNoiseValueForGridCoordinates(0, y,z);
-							if(EdgeOfGeometricObject!=EEdgeOfGeometricObject::Ve_None)
+							bNeedToGenerateNoise=true;
+							if(bClampTop && z ==NoiseSamplesPerLine-1)
 							{
-								switch (EdgeOfGeometricObject)
-								{
-								case EEdgeOfGeometricObject::Ve_SouthStart:
-									{
-										if(y ==NoiseSamplesPerLine-1 || z == NoiseSamplesPerLine-1)
-										{
-											NoiseResult=0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_SouthMiddle:
-									{
-										if(y==NoiseSamplesPerLine-1)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_SouthEnd:
-									{
-										if(y==NoiseSamplesPerLine-1 || z == 0)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_WestBottom:
-									{
-										if(z==0)
-										{
-											NoiseResult=0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_WestTop:
-									{
-										if(z==NoiseSamplesPerLine-1)
-										{
-											NoiseResult=0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_WestEndTop:
-									{
-										if(y==0 || z == NoiseSamplesPerLine-1)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-
-								case EEdgeOfGeometricObject::Ve_WestEndBottom:
-									{
-										if(y==0 || z == 0)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-
-								case EEdgeOfGeometricObject::Ve_WestEndMiddle:
-									{
-										if(y==0) 
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_AllEnds:
-									{
-										if(y==0 || z==0 || y== NoiseSamplesPerLine-1 || z == NoiseSamplesPerLine-1)
-										{
-											NoiseResult=0;
-										}
-										break;
-									}
-								default: ;
-								}
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bClampBottom && z==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bClampRight && y==NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bClampLeft && y == 0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bNeedToGenerateNoise)
+							{
+								NoiseResult = GetNoiseValueForGridCoordinates(0, y,z);
 							}
 							const int Index = GetIndexForGridCoordinates(z, y);
 							const FVector2D Position = GetPositionForGridCoordinates(z, y);
@@ -493,88 +258,30 @@ void UProceduralTerrainComponent::GenerateVertices()
 					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
 					for (int y = 0; y < NoiseSamplesPerLine; y++) {
 						for (int z = 0; z < NoiseSamplesPerLine; z++) {
-							float NoiseResult = GetNoiseValueForGridCoordinates(0, -y,z);
-							if(EdgeOfGeometricObject!=EEdgeOfGeometricObject::Ve_None)
+							bNeedToGenerateNoise=true;
+							if(bClampTop && z ==0)
 							{
-								switch (EdgeOfGeometricObject)
-								{
-								case EEdgeOfGeometricObject::Ve_NorthStart:
-									{
-										if(y ==0 || z == NoiseSamplesPerLine-1)
-										{
-											NoiseResult=0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_NorthMiddle:
-									{
-										if(y==0)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_NorthEnd:
-									{
-										if(y==0 || z == 0)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_WestBottom:
-									{
-										if(z==NoiseSamplesPerLine-1)
-										{
-											NoiseResult=0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_WestTop:
-									{
-										if(z==0)
-										{
-											NoiseResult=0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_WestEndTop:
-									{
-										if(y==NoiseSamplesPerLine-1 || z == 0)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-
-								case EEdgeOfGeometricObject::Ve_WestEndBottom:
-									{
-										if(y==NoiseSamplesPerLine-1 || z == NoiseSamplesPerLine-1)
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-
-								case EEdgeOfGeometricObject::Ve_WestEndMiddle:
-									{
-										if(y==NoiseSamplesPerLine-1) 
-										{
-											NoiseResult = 0;
-										}
-										break;
-									}
-								case EEdgeOfGeometricObject::Ve_AllEnds:
-									{
-										if(y==0 || z==0 || y== NoiseSamplesPerLine-1 || z == NoiseSamplesPerLine-1)
-										{
-											NoiseResult=0;
-										}
-										break;
-									}
-								default: ;
-									;
-								}
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bClampBottom && z==NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bClampRight && y==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bClampLeft && y == NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=0;
+							}
+							if(bNeedToGenerateNoise)
+							{
+								NoiseResult = GetNoiseValueForGridCoordinates(0, -y,z);
 							}
 							const int Index = GetIndexForGridCoordinates(z, y);
 							const FVector2D Position = GetPositionForGridCoordinates(z, y);
@@ -775,9 +482,4 @@ void UProceduralTerrainComponent::SetNoiseInputScale(const float NewNoiseInputSc
 void UProceduralTerrainComponent::SetNoiseOutputScale(const float NewNoiseOutputScale)
 {
 	NoiseOutputScale=NewNoiseOutputScale;
-}
-
-void UProceduralTerrainComponent::SetEdgeOfGeometricObject(EEdgeOfGeometricObject GeometricObject)
-{
-	EdgeOfGeometricObject=GeometricObject;
 }

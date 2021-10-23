@@ -57,47 +57,6 @@ enum class ESubSections: uint8
 	Ve_SixtyFour	UMETA(DisplayName="64")
 };
 
-UENUM(BlueprintType)
-enum class EEdgeOfGeometricObject: uint8
-{
-	Ve_NorthStart		UMETA(DisplayName="North Start"),
-
-	Ve_NorthMiddle		UMETA(DisplayName="North Middle"),
-	
-	Ve_NorthEnd			UMETA(DisplayName="North End"),
-
-	Ve_SouthStart		UMETA(DisplayName="South Start"),
-
-	Ve_SouthMiddle		UMETA(DisplayName="South Middle"),
-	
-	Ve_SouthEnd			UMETA(DisplayName="South End"),
-	
-	Ve_EastBottom		UMETA(DisplayName="East Bottom"),
-
-	Ve_EastTop			UMETA(DisplayName="East Top"),
-	
-	Ve_EastEndTop		UMETA(DisplayName="East End Top"),
-
-	Ve_EastEndMiddle	UMETA(DisplayName="East End Middle"),
-
-	Ve_EastEndBottom	UMETA(DisplayName="East End Bottom"),
-
-	Ve_WestBottom		UMETA(DisplayName="West Bottom"),
-
-	Ve_WestTop			UMETA(DisplayName="West Top"),
-	
-	Ve_WestEndTop		UMETA(DisplayName="West End Top"),
-
-	Ve_WestEndMiddle	UMETA(DisplayName="West End Middle"),
-
-	Ve_WestEndBottom	UMETA(DisplayName="West End Bottom"),
-
-	Ve_AllEnds			UMETA(DisplayName="All Ends"),
-
-	Ve_None				UMETA(DisplayName= "None")
-};
-
-
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class PORTFOLIO_API UProceduralTerrainComponent : public UActorComponent
@@ -117,6 +76,11 @@ public:
 	void UnLoadMesh();
 
 	void LoadMesh();
+
+	bool bClampTop =false;
+	bool bClampBottom = false;
+	bool bClampLeft = false;
+	bool bClampRight =false;
 
 	/** Set Noise Type*/
 	void SetNoiseTypeComponent(const EFastNoise_NoiseType NewNoiseType);
@@ -159,10 +123,9 @@ public:
 
 	void SetNoiseOutputScale(float NewNoiseOutputScale);
 
-	void SetEdgeOfGeometricObject(EEdgeOfGeometricObject GeometricObject);
+	void SetClamping(const bool Top, const bool Bottom, const bool Right,const bool Left) {bClampTop=Top;bClampLeft=Left;bClampRight=Right;bClampBottom=Bottom;};
 
 private:
-	EEdgeOfGeometricObject EdgeOfGeometricObject;
 	EComponentShapes Shapes;
 	EShapeSide ShapeSide;
 	ESubSections ShapeSubSections;

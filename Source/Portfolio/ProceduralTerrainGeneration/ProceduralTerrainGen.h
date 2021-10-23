@@ -21,6 +21,31 @@ enum class EDirectionException: uint8
 
 };
 
+UENUM(BlueprintType)
+enum class EClampingNeeds: uint8
+{
+	Ve_None		UMETA(DisplayName="None"),
+
+	Ve_All		UMETA(DisplayName="All"),
+
+	Ve_SameAsPrevious	UMETA(DisplayName= "Same as Previous"),
+	
+	Ve_Top		UMETA(DisplayName="Top"),
+	
+	Ve_Bottom	UMETA(DisplayName = "Bottom"),
+	
+	Ve_Left		UMETA(DisplayName = "Left"),
+	
+	Ve_Right	UMETA(DisplayName = "Right"),
+
+	Ve_TopRight		UMETA(DisplayName="Top Right"),
+	
+	Ve_TopLeft		UMETA(DisplayName="Top Left"),
+	
+	Ve_BottomLeft	UMETA(DisplayName = "Bottom Left"),
+		
+	Ve_BottomRight	UMETA(DisplayName = "Bottom Right")
+};
 UCLASS()
 class PORTFOLIO_API AProceduralTerrainGen : public AActor
 {
@@ -38,6 +63,15 @@ public:
 	
 	bool bNeedDestroyed = false;
 	bool bNeverDestroy = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings")
+	bool bClampTop =false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings")
+	bool bClampBottom = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings")
+	bool bClampLeft = false;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings")
+	bool bClampRight =false;
 
 	UPROPERTY(VisibleAnywhere)
 	UProceduralTerrainComponent* ProceduralTerrain;
@@ -117,15 +151,12 @@ public:
 	void SetTerrainShapeSide(EShapeSide const ShapeSide){TerrainShapeSide=ShapeSide;}
 
 	void SetTerrainSubSections(ESubSections const SubSections) {TerrainSubSections=SubSections;}
-	
-	void SetTerrainEdgeOfGeometry(const EEdgeOfGeometricObject EdgeOfGeometry) {TerrainEdgeOfGeometry=EdgeOfGeometry;}
-
 
 private:
 	static void MakeVisibleComponent(AProceduralTerrainGen* TerrainGen, int IndexFromActiveLandscape );
-	AProceduralTerrainGen* GenerateVisibleComponent(EDirectionException PreviousDirectionException,int IndexFromActiveLandscape, EShapeSide TerrainSide= EShapeSide::Ve_Top,EEdgeOfGeometricObject TerrainEdge = EEdgeOfGeometricObject::Ve_None);
+	AProceduralTerrainGen* GenerateVisibleComponent(EDirectionException PreviousDirectionException,int IndexFromActiveLandscape, EShapeSide TerrainSide= EShapeSide::Ve_Top, EClampingNeeds ClampingNeeds= EClampingNeeds::Ve_None);
 
-	AProceduralTerrainGen* CreateProceduralTerrain(int PosX, int PosY,int PosZ, int CurrentLandscapeIndex, EDirectionException PreviousDirectionException, EShapeSide TerrainSide,EEdgeOfGeometricObject TerrainEdge);
+	AProceduralTerrainGen* CreateProceduralTerrain(int PosX, int PosY,int PosZ, int CurrentLandscapeIndex, EDirectionException PreviousDirectionException, EShapeSide TerrainSide, EClampingNeeds ClampingNeeds);
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings", meta = (AllowPrivateAccess = "true"))
 	AProceduralTerrainGen* EastTerrainGenerated;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings", meta = (AllowPrivateAccess = "true"))
@@ -138,8 +169,6 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Noise Settings", meta = (AllowPrivateAccess = "true"))
 	FVector NoiseComponentStartLocation;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings", meta = (AllowPrivateAccess = "true"))
-	EEdgeOfGeometricObject TerrainEdgeOfGeometry;
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings", meta = (AllowPrivateAccess = "true"))
 	EComponentShapes TerrainShape;
@@ -211,6 +240,7 @@ private:
 
 	static int ConvertEnumSubSectionsToInteger(ESubSections AShapeSubSections);
 
+	void SetNewClamps(const bool Top, const bool Bottom,const bool Right,const bool Left){bClampTop=Top;bClampBottom=Bottom;bClampRight=Right;bClampLeft=Left;}
 };
 
 
