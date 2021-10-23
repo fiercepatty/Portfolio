@@ -2,14 +2,13 @@
 
 
 #include "ProceduralTerrainGeneration/ProceduralTerrainComponent.h"
-
 // Sets default values for this component's properties
 UProceduralTerrainComponent::UProceduralTerrainComponent()
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = false;
-	ProceduralMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("GeneratedMesh"));
+	ProceduralMesh = CreateDefaultSubobject<URuntimeMeshComponentStatic>(TEXT("GeneratedMesh"));
 	FastNoise =CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("FastNoiseWrapper"));
 	// ...
 }
@@ -27,7 +26,7 @@ void UProceduralTerrainComponent::GenerateMap(const FVector StartingLocation, co
 	NoiseSamplesPerLine = TotalSizeToGenerate / NoiseResolution;
 	VerticesArraySize = NoiseSamplesPerLine * NoiseSamplesPerLine;
 	Normals.Init(FVector(0, 0, 1), VerticesArraySize);
-	//Tangents.Init(FRuntimeMeshTangent(0, -1, 0), VerticesArraySize);
+	Tangents.Init(FRuntimeMeshTangent(0, -1, 0), VerticesArraySize);
 	UV.Init(FVector2D(0, 0), VerticesArraySize);
 	VertexColors.Init(FColor::White, VerticesArraySize);
 	
@@ -36,6 +35,63 @@ void UProceduralTerrainComponent::GenerateMap(const FVector StartingLocation, co
 	GenerateMesh();
 	bIsVisible=true;
 	bGenerated=true;
+}
+
+float UProceduralTerrainComponent::CreateSphereOffset(const int PositionX,const int PositionY) const
+{
+	const int HalfSizeOfMap = (NoiseSamplesPerLine-1)/2;
+	const float SizeOfMap = NoiseSamplesPerLine-1.0f;
+	if(PositionX>=HalfSizeOfMap && PositionY >= HalfSizeOfMap)
+	{
+		if(PositionX>PositionY)
+		{
+			return 2*(1-PositionX/SizeOfMap);
+		}
+		else
+		{
+			return 2*(1-PositionY/SizeOfMap);
+		}
+	}
+	else if(PositionX>HalfSizeOfMap && PositionY<HalfSizeOfMap)
+	{
+		float const NewPosX =PositionX-HalfSizeOfMap;
+		if(NewPosX<PositionY)
+		{
+			return 0;
+		}
+		else
+		{
+			return 0;
+		}
+	}
+	else if(PositionX<HalfSizeOfMap && PositionY>HalfSizeOfMap)
+	{
+		const float NewPosY =PositionY-HalfSizeOfMap;
+		if(PositionX>NewPosY)
+		{
+			return (PositionX/SizeOfMap);
+		}
+		else
+		{
+			return (NewPosY/SizeOfMap);
+		}
+	}
+	else if(PositionX<=HalfSizeOfMap && PositionY<=HalfSizeOfMap)
+	{
+		if(PositionX<PositionY)
+		{
+			return 2*(PositionX/SizeOfMap);
+		}
+		else
+		{
+			return 2*(PositionY/SizeOfMap);
+		}
+	}
+	else if(PositionX==HalfSizeOfMap && PositionY==HalfSizeOfMap)
+	{
+		return 1;
+	}
+	return 0;
 }
 
 void UProceduralTerrainComponent::GenerateVertices()
@@ -297,39 +353,319 @@ void UProceduralTerrainComponent::GenerateVertices()
 		}
 	case EComponentShapes::Ve_Sphere:
 		{
+			bool bNeedToGenerateNoise=false;
+			float NoiseResult =0;
+			float SphereOffset=0;
 			switch (ShapeSide)
 			{
 			case EShapeSide::Ve_Top:
 				{
+					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
+					for (int y = 0; y < NoiseSamplesPerLine; y++) {
+						for (int x = 0; x < NoiseSamplesPerLine; x++)
+						{
+							bNeedToGenerateNoise=true;
+							SphereOffset=CreateSphereOffset(x,y);
+							if(bClampTop && x==NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bClampBottom && x==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bClampRight && y==NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bClampLeft && y==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bNeedToGenerateNoise)
+							{
+								//NoiseResult = GetNoiseValueForGridCoordinates(x, y,0);
+								NoiseResult=1;
+							}
+							const int Index = GetIndexForGridCoordinates(x, y);
+							const FVector2D Position = GetPositionForGridCoordinates(x, y);
+							Vertices[Index] = FVector(Position.X, Position.Y, SphereOffset*NoiseOutputScale);
+							UV[Index] = FVector2D(x, y);
+						}
+					}
 					break;
 				}
 			case EShapeSide::Ve_Bottom:
 				{
+					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
+					for (int y = 0; y < NoiseSamplesPerLine; y++) {
+						for (int x = 0; x < NoiseSamplesPerLine; x++) {
+							bNeedToGenerateNoise=true;
+							SphereOffset=1;
+							if(bClampTop && x==NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bClampBottom && x==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bClampRight && y==NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bClampLeft && y==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bNeedToGenerateNoise)
+							{
+								NoiseResult=1;
+								//NoiseResult = GetNoiseValueForGridCoordinates(-x, y,0);
+							}
+							const int Index = GetIndexForGridCoordinates(x, y);
+							const FVector2D Position = GetPositionForGridCoordinates(x, y);
+							Vertices[Index] = FVector(-Position.X+TotalSizeToGenerate-NoiseResolution, Position.Y, -(SphereOffset*NoiseOutputScale));
+							UV[Index] = FVector2D(x, y);
+						}
+					}
 					break;
 				}
 			case EShapeSide::Ve_Left:
 				{
+					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
+					for (int z = 0; z < NoiseSamplesPerLine; z++) {
+						for (int x = 0; x < NoiseSamplesPerLine; x++) {
+							bNeedToGenerateNoise=true;
+							SphereOffset=0;
+							if(bClampTop && x==NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bClampBottom && x==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bClampRight && z== NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bClampLeft && z==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bNeedToGenerateNoise)
+							{
+								NoiseResult=1;
+								//NoiseResult = GetNoiseValueForGridCoordinates(x, 0,z);
+							}
+							const int Index = GetIndexForGridCoordinates(x, z);
+							const FVector2D Position = GetPositionForGridCoordinates(x, z);
+							Vertices[Index] = FVector(Position.X, -(NoiseOutputScale*SphereOffset), Position.Y);
+							UV[Index] = FVector2D(x, z);
+						}
+					}
 					break;
 				}
 			case EShapeSide::Ve_Right:
 				{
+					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
+					for (int z = 0; z < NoiseSamplesPerLine; z++) {
+						for (int x = 0; x < NoiseSamplesPerLine; x++) {
+							bNeedToGenerateNoise=true;
+							if(z>x)
+							{
+								if(x>50)
+								{
+									SphereOffset=(2*(100-x))/100;
+								}
+								else
+								{
+									SphereOffset=(2*x)/100;
+								}
+							}
+							else
+							{
+								if(z>50)
+								{
+									SphereOffset=(2*(100-z))/100;
+								}
+								else
+								{
+									SphereOffset=(2*z)/100;
+								}
+							}
+							if(bClampTop && x==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bClampBottom && x==NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bClampRight && z==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bClampLeft && z==NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bNeedToGenerateNoise)
+							{
+								NoiseResult=1;
+								//NoiseResult = GetNoiseValueForGridCoordinates(-x, 0,z);
+							}
+							const int Index = GetIndexForGridCoordinates(x, z);
+							const FVector2D Position = GetPositionForGridCoordinates(x, z);
+							Vertices[Index] = FVector(-Position.X+TotalSizeToGenerate-NoiseResolution, (NoiseOutputScale*SphereOffset+TotalSizeToGenerate-NoiseResolution), Position.Y);
+							UV[Index] = FVector2D(x, z);
+						}
+					}
 					break;
 				}
 			case EShapeSide::Ve_Front:
 				{
+					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
+					for (int y = 0; y < NoiseSamplesPerLine; y++) {
+						for (int z = 0; z < NoiseSamplesPerLine; z++) {
+							bNeedToGenerateNoise=true;
+							if(y>z)
+							{
+								if(z>50)
+								{
+									SphereOffset=(2*(100-z))/100;
+								}
+								else
+								{
+									SphereOffset=(2*z)/100;
+								}
+							}
+							else
+							{
+								if(y>50)
+								{
+									SphereOffset=(2*(100-y))/100;
+								}
+								else
+								{
+									SphereOffset=(2*y)/100;
+								}
+							}
+							if(bClampTop && z ==NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bClampBottom && z==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bClampRight && y==NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bClampLeft && y == 0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bNeedToGenerateNoise)
+							{
+								NoiseResult=1;
+								//NoiseResult = GetNoiseValueForGridCoordinates(0, y,z);
+							}
+							const int Index = GetIndexForGridCoordinates(z, y);
+							const FVector2D Position = GetPositionForGridCoordinates(z, y);
+							Vertices[Index] = FVector(-(SphereOffset*NoiseOutputScale), Position.Y,Position.X );
+							UV[Index] = FVector2D(z, y);
+						}
+					}
 					break;
 				}
 			case EShapeSide::Ve_Back:
 				{
+					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
+					for (int y = 0; y < NoiseSamplesPerLine; y++) {
+						for (int z = 0; z < NoiseSamplesPerLine; z++) {
+							bNeedToGenerateNoise=true;
+							if(y>z)
+							{
+								if(z>50)
+								{
+									SphereOffset=(2*(100-z))/100;
+								}
+								else
+								{
+									SphereOffset=(2*z)/100;
+								}
+							}
+							else
+							{
+								if(y>50)
+								{
+									SphereOffset=(2*(100-y))/100;
+								}
+								else
+								{
+									SphereOffset=(2*y)/100;
+								}
+							}
+							if(bClampTop && z ==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bClampBottom && z==NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bClampRight && y==0)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bClampLeft && y == NoiseSamplesPerLine-1)
+							{
+								bNeedToGenerateNoise=false;
+								NoiseResult=1;
+							}
+							if(bNeedToGenerateNoise)
+							{
+								NoiseResult=1;
+								//NoiseResult = GetNoiseValueForGridCoordinates(0, -y,z);
+							}
+							const int Index = GetIndexForGridCoordinates(z, y);
+							const FVector2D Position = GetPositionForGridCoordinates(z, y);
+							Vertices[Index] = FVector((NoiseOutputScale*SphereOffset+TotalSizeToGenerate-NoiseResolution), -Position.Y+TotalSizeToGenerate-NoiseResolution,Position.X );
+							UV[Index] = FVector2D(y,z);
+						}
+					}
 					break;
 				}
 			default: ;
 			}
-			break;
 		}
-	default: ;
 	}
-	
 }
 
 void UProceduralTerrainComponent::GenerateTriangles()
@@ -364,7 +700,7 @@ void UProceduralTerrainComponent::GenerateTriangles()
 
 void UProceduralTerrainComponent::GenerateMesh() const
 {
-	ProceduralMesh->CreateMeshSection(0,Vertices,Triangles,Normals,UV,VertexColors,Tangents,true);
+	ProceduralMesh->CreateSectionFromComponents(0,0,0,Vertices,Triangles,Normals,UV,VertexColors,Tangents);
 }
 
 float UProceduralTerrainComponent::GetNoiseValueForGridCoordinates(const int X, const int Y, const int Z) const

@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "ProceduralMeshComponent.h"
 #include "FastNoiseWrapper.h"
+#include "Components/RuntimeMeshComponentStatic.h"
 #include "ProceduralTerrainComponent.generated.h"
 
 UENUM(BlueprintType)
@@ -138,7 +138,7 @@ private:
 	int NoiseResolution = 300;
 
 	int TotalSizeToGenerate = 1200;
-	
+	float CreateSphereOffset(int PositionX, int PositionY) const;
 	int NoiseSamplesPerLine = TotalSizeToGenerate / NoiseResolution;
 	int VerticesArraySize = NoiseSamplesPerLine * NoiseSamplesPerLine;
 
@@ -147,7 +147,7 @@ private:
 	float NoiseOutputScale = 2000; // Making this bigger will scale the terrain's height
 
 	UPROPERTY(VisibleAnywhere)
-	UProceduralMeshComponent* ProceduralMesh;
+	URuntimeMeshComponentStatic* ProceduralMesh;
 
 	void GenerateVertices();
 	void GenerateTriangles();
@@ -159,7 +159,7 @@ private:
 
 	// Other things needed to generate the mesh
 	TArray<FVector> Normals;
-	TArray<FProcMeshTangent> Tangents;
+	TArray<FRuntimeMeshTangent> Tangents;
 	TArray<FVector2D> UV;
 	TArray<FColor> VertexColors;
 	

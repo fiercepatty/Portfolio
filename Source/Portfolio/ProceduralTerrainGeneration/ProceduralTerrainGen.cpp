@@ -653,6 +653,277 @@ void AProceduralTerrainGen::GenerateSiblingLandscapes(const int IndexFromActiveL
 		}
 	case EComponentShapes::Ve_Sphere:
 		{
+			if(IndexFromActiveLandscape<ConvertEnumSubSectionsToInteger(TerrainSubSections))
+			{
+				if(PreviousDirectionException == EDirectionException::Ve_North)
+				{
+					if(TerrainShapeSide==EShapeSide::Ve_Top)
+					{
+						EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,1,EShapeSide::Ve_Right, EClampingNeeds::Ve_Left);
+						EastTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_East);
+					}
+					if(IndexFromActiveLandscape+1==ConvertEnumSubSectionsToInteger(TerrainSubSections))
+					{
+						NorthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_North,IndexFromActiveLandscape+1,TerrainShapeSide,EClampingNeeds::Ve_TopRight);
+					}
+					else
+					{
+						NorthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_North,IndexFromActiveLandscape+1,TerrainShapeSide,EClampingNeeds::Ve_Right);
+					}
+					if(IndexFromActiveLandscape==1)
+					{
+						if(2 == ConvertEnumSubSectionsToInteger(TerrainSubSections))
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,TerrainShapeSide,EClampingNeeds::Ve_BottomLeft);
+						}
+						else
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,TerrainShapeSide,EClampingNeeds::Ve_Bottom);
+						}
+					}
+					else
+					{
+						WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,TerrainShapeSide,EClampingNeeds::Ve_None);
+					}
+					NorthTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::Ve_North);
+					WestTerrainGenerated->GenerateSiblingLandscapes(2,EDirectionException::Ve_West);
+				}
+				if(PreviousDirectionException == EDirectionException::Ve_South)
+				{
+					if(IndexFromActiveLandscape+1==ConvertEnumSubSectionsToInteger(TerrainSubSections))
+					{
+						SouthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_South,IndexFromActiveLandscape+1,TerrainShapeSide,EClampingNeeds::Ve_BottomRight);
+					}
+					else
+					{
+						SouthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_South,IndexFromActiveLandscape+1,TerrainShapeSide,EClampingNeeds::Ve_Right);
+					}
+					if(IndexFromActiveLandscape==1)
+					{
+						if(IndexFromActiveLandscape+1 == ConvertEnumSubSectionsToInteger(TerrainSubSections))
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,TerrainShapeSide,EClampingNeeds::Ve_TopLeft);
+						}
+						else
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,TerrainShapeSide,EClampingNeeds::Ve_Top);
+						}
+					}
+					else
+					{
+						WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,TerrainShapeSide,EClampingNeeds::Ve_None);
+					}
+					SouthTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::Ve_South);
+					WestTerrainGenerated->GenerateSiblingLandscapes(2,EDirectionException::Ve_West);
+		
+				}
+				if(PreviousDirectionException == EDirectionException::Ve_East)
+				{
+					if(IndexFromActiveLandscape+1==ConvertEnumSubSectionsToInteger(TerrainSubSections))
+					{
+						if(bClampTop)
+						{
+							EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,IndexFromActiveLandscape+1,TerrainShapeSide,EClampingNeeds::Ve_TopRight);
+						}
+						else if(bClampBottom)
+						{
+							EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,IndexFromActiveLandscape+1,TerrainShapeSide,EClampingNeeds::Ve_BottomRight);
+						}
+						else
+						{
+							EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,IndexFromActiveLandscape+1,TerrainShapeSide,EClampingNeeds::Ve_Right);
+						}
+					}
+					else
+					{
+						if(bClampTop)
+						{
+							EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,IndexFromActiveLandscape+1,TerrainShapeSide,EClampingNeeds::Ve_Top);
+						}
+						else if(bClampBottom)
+						{
+							EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,IndexFromActiveLandscape+1,TerrainShapeSide,EClampingNeeds::Ve_Bottom);
+						}
+						else
+						{
+							EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,IndexFromActiveLandscape+1,TerrainShapeSide,EClampingNeeds::Ve_None);
+						}
+					}
+					EastTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1, EDirectionException::Ve_East);
+				}
+				if(PreviousDirectionException== EDirectionException::Ve_West)
+				{
+					if(IndexFromActiveLandscape+1==ConvertEnumSubSectionsToInteger(TerrainSubSections))
+					{
+						if(bClampTop)
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,IndexFromActiveLandscape+1,TerrainShapeSide,EClampingNeeds::Ve_TopLeft);
+						}
+						else if(bClampBottom)
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,IndexFromActiveLandscape+1,TerrainShapeSide,EClampingNeeds::Ve_BottomLeft);
+						}
+						else
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,IndexFromActiveLandscape+1,TerrainShapeSide,EClampingNeeds::Ve_Left);
+						}
+					}
+					else
+					{
+						if(bClampTop)
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,IndexFromActiveLandscape+1,TerrainShapeSide,EClampingNeeds::Ve_Top);
+						}
+						else if(bClampBottom)
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,IndexFromActiveLandscape+1,TerrainShapeSide,EClampingNeeds::Ve_Bottom);
+						}
+						else if(bClampRight)
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,IndexFromActiveLandscape+1,TerrainShapeSide,EClampingNeeds::Ve_None);
+						}
+						else
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,IndexFromActiveLandscape+1,TerrainShapeSide,EClampingNeeds::Ve_None);
+						}
+					}
+					WestTerrainGenerated->GenerateSiblingLandscapes(IndexFromActiveLandscape+1,EDirectionException::Ve_West);
+				}
+				if(PreviousDirectionException==EDirectionException::Ve_None)
+				{
+					if(ConvertEnumSubSectionsToInteger(TerrainSubSections)==2)
+					{
+						NorthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_North,2,EShapeSide::Ve_Top,EClampingNeeds::Ve_TopRight);
+					}
+					else
+					{
+						NorthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_North,2,EShapeSide::Ve_Top,EClampingNeeds::Ve_Right);
+					}
+					SouthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_South,1,EShapeSide::Ve_Front,EClampingNeeds::Ve_TopRight);
+					EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,1,EShapeSide::Ve_Right,EClampingNeeds::Ve_BottomLeft);
+					if(2==ConvertEnumSubSectionsToInteger(TerrainSubSections))
+					{
+						WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,EShapeSide::Ve_Top,EClampingNeeds::Ve_BottomLeft);
+
+					}
+					else
+					{
+						WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,EShapeSide::Ve_Top,EClampingNeeds::Ve_Bottom);
+					}
+					NorthTerrainGenerated->GenerateSiblingLandscapes(2, EDirectionException::Ve_North);
+					SouthTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_South);
+					EastTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_East);
+					WestTerrainGenerated->GenerateSiblingLandscapes(2,EDirectionException::Ve_West);
+				
+				}
+			}
+			else
+			{
+				if(PreviousDirectionException == EDirectionException::Ve_North)
+				{
+					if(TerrainShapeSide == EShapeSide::Ve_Top)
+					{
+						NorthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_North,1,EShapeSide::Ve_Back,EClampingNeeds::Ve_BottomRight);
+						if(2 == ConvertEnumSubSectionsToInteger(TerrainSubSections))
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,TerrainShapeSide,EClampingNeeds::Ve_TopLeft);
+						}
+						else
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,TerrainShapeSide,EClampingNeeds::Ve_Top);
+						}
+						EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,1,EShapeSide::Ve_Right,EClampingNeeds::Ve_TopLeft);
+
+						EastTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_East);
+						NorthTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_North);
+						WestTerrainGenerated->GenerateSiblingLandscapes(2,EDirectionException::Ve_West);
+					}
+					else if(TerrainSubSections !=ESubSections::Ve_One)
+					{
+						if(2 == ConvertEnumSubSectionsToInteger(TerrainSubSections))
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,TerrainShapeSide,EClampingNeeds::Ve_TopLeft);
+						}
+						else
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,TerrainShapeSide,EClampingNeeds::Ve_Top);
+						}
+						WestTerrainGenerated->GenerateSiblingLandscapes(2,EDirectionException::Ve_West);
+					}
+				}
+				if(PreviousDirectionException == EDirectionException::Ve_South)
+				{
+					if(TerrainShapeSide==EShapeSide::Ve_Front)
+					{
+						if(TerrainSubSections!= ESubSections::Ve_One)
+						{
+							if(2 == ConvertEnumSubSectionsToInteger(TerrainSubSections))
+							{
+								WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,TerrainShapeSide,EClampingNeeds::Ve_BottomLeft);
+							}
+							else
+							{
+								WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,EShapeSide::Ve_Front,EClampingNeeds::Ve_Bottom);
+							}
+							WestTerrainGenerated->GenerateSiblingLandscapes(2,EDirectionException::Ve_West);
+							SouthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_South,1,EShapeSide::Ve_Bottom,EClampingNeeds::Ve_TopRight);
+							SouthTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_South);
+						}
+						else
+						{
+							SouthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_South,1,EShapeSide::Ve_Bottom,EClampingNeeds::Ve_All);
+							SouthTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_South);
+						}
+					}
+					else if(TerrainSubSections !=ESubSections::Ve_One)
+					{
+						if(TerrainShapeSide==EShapeSide::Ve_Bottom)
+						{
+							if(2 == ConvertEnumSubSectionsToInteger(TerrainSubSections))
+							{
+								WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,TerrainShapeSide,EClampingNeeds::Ve_BottomLeft);
+							}
+							else
+							{
+								WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,2,EShapeSide::Ve_Bottom,EClampingNeeds::Ve_Bottom);
+							}
+						}
+						WestTerrainGenerated->GenerateSiblingLandscapes(2,EDirectionException::Ve_West);
+					}
+				}
+				if(PreviousDirectionException == EDirectionException::Ve_West)
+				{
+					if(TerrainShapeSide==EShapeSide::Ve_Top)
+					{
+						if(bClampBottom)
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,1,EShapeSide::Ve_Left,EClampingNeeds::Ve_BottomRight);
+						}
+						else if (bClampTop)
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,1,EShapeSide::Ve_Left,EClampingNeeds::Ve_TopRight);
+						}
+						else
+						{
+							WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,1,EShapeSide::Ve_Left,EClampingNeeds::Ve_Right);
+						}
+						WestTerrainGenerated->GenerateSiblingLandscapes(1,EDirectionException::Ve_West);
+					}
+				}
+				if(PreviousDirectionException==EDirectionException::Ve_None)
+				{
+					NorthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_North,1,EShapeSide::Ve_Back,EClampingNeeds::Ve_All);
+					SouthTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_South,1,EShapeSide::Ve_Front,EClampingNeeds::Ve_All);
+					EastTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_East,1,EShapeSide::Ve_Right,EClampingNeeds::Ve_All);
+					WestTerrainGenerated =GenerateVisibleComponent(EDirectionException::Ve_West,1,EShapeSide::Ve_Left,EClampingNeeds::Ve_All);
+
+					NorthTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_North);
+					SouthTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_South);
+					EastTerrainGenerated->GenerateSiblingLandscapes(1, EDirectionException::Ve_East);
+					WestTerrainGenerated->GenerateSiblingLandscapes(1,EDirectionException::Ve_West);
+			
+				}
+			}
 			break;
 		}
 	default: ;
@@ -708,6 +979,7 @@ void AProceduralTerrainGen::GenerateCurrentLandscape() const
 		}
 	case EComponentShapes::Ve_Sphere:
 		{
+			ProceduralTerrain->GenerateMap(NoiseComponentStartLocation,TerrainShape,TerrainShapeSide,TerrainSubSections);
 			break;
 		}
 	default: ;
