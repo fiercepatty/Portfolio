@@ -13,9 +13,32 @@ UProceduralTerrainComponent::UProceduralTerrainComponent()
 	// ...
 }
 
-void UProceduralTerrainComponent::GenerateMap(const FVector StartingLocation, const EComponentShapes ComponentShape, const EShapeSide SideOfShape, const ESubSections ShapeSection)
+void UProceduralTerrainComponent::GenerateMap(const FVector StartingLocation)
 {
-	Shapes=ComponentShape;
+	ComponentLocation= StartingLocation;
+	Shapes=EComponentShapes::Ve_Plain;
+
+	FastNoise->SetupFastNoise(NoiseType, Seed, Frequency, Interp, FractalType,
+				Octaves,Lacunarity,Gain,CellularJitter, CellularDistanceFunction, CellularReturnType);
+
+	NoiseSamplesPerLine = TotalSizeToGenerate / NoiseResolution;
+	VerticesArraySize = NoiseSamplesPerLine * NoiseSamplesPerLine;
+	Normals.Init(FVector(0, 0, 1), VerticesArraySize);
+	Tangents.Init(FRuntimeMeshTangent(0, -1, 0), VerticesArraySize);
+	UV.Init(FVector2D(0, 0), VerticesArraySize);
+	VertexColors.Init(FColor::White, VerticesArraySize);
+	
+	GenerateVertices();
+	GenerateTriangles();
+	GenerateMesh();
+	bIsVisible=true;
+	bGenerated=true;
+}
+
+void UProceduralTerrainComponent::GenerateMapSphere(FVector StartingLocation, EShapeSide SideOfShape,
+	ESubSections ShapeSection)
+{
+	Shapes=EComponentShapes::Ve_Sphere;
 	ShapeSubSections=ShapeSection;
 	ShapeSide=SideOfShape;
 	ComponentLocation= StartingLocation;
@@ -37,62 +60,31 @@ void UProceduralTerrainComponent::GenerateMap(const FVector StartingLocation, co
 	bGenerated=true;
 }
 
-float UProceduralTerrainComponent::CreateSphereOffset(const int PositionX,const int PositionY) const
+void UProceduralTerrainComponent::GenerateMap(const FVector StartingLocation, const EShapeSide SideOfShape, const ESubSections ShapeSection)
 {
-	const int HalfSizeOfMap = (NoiseSamplesPerLine-1)/2;
-	const float SizeOfMap = NoiseSamplesPerLine-1.0f;
-	if(PositionX>=HalfSizeOfMap && PositionY >= HalfSizeOfMap)
-	{
-		if(PositionX>PositionY)
-		{
-			return 2*(1-PositionX/SizeOfMap);
-		}
-		else
-		{
-			return 2*(1-PositionY/SizeOfMap);
-		}
-	}
-	else if(PositionX>HalfSizeOfMap && PositionY<HalfSizeOfMap)
-	{
-		float const NewPosX =PositionX-HalfSizeOfMap;
-		if(NewPosX<PositionY)
-		{
-			return 0;
-		}
-		else
-		{
-			return 0;
-		}
-	}
-	else if(PositionX<HalfSizeOfMap && PositionY>HalfSizeOfMap)
-	{
-		const float NewPosY =PositionY-HalfSizeOfMap;
-		if(PositionX>NewPosY)
-		{
-			return (PositionX/SizeOfMap);
-		}
-		else
-		{
-			return (NewPosY/SizeOfMap);
-		}
-	}
-	else if(PositionX<=HalfSizeOfMap && PositionY<=HalfSizeOfMap)
-	{
-		if(PositionX<PositionY)
-		{
-			return 2*(PositionX/SizeOfMap);
-		}
-		else
-		{
-			return 2*(PositionY/SizeOfMap);
-		}
-	}
-	else if(PositionX==HalfSizeOfMap && PositionY==HalfSizeOfMap)
-	{
-		return 1;
-	}
-	return 0;
+	Shapes=EComponentShapes::Ve_Cube;
+	ShapeSubSections=ShapeSection;
+	ShapeSide=SideOfShape;
+	ComponentLocation= StartingLocation;
+	
+	FastNoise->SetupFastNoise(NoiseType, Seed, Frequency, Interp, FractalType,
+				Octaves,Lacunarity,Gain,CellularJitter, CellularDistanceFunction, CellularReturnType);
+
+	NoiseSamplesPerLine = TotalSizeToGenerate / NoiseResolution;
+	VerticesArraySize = NoiseSamplesPerLine * NoiseSamplesPerLine;
+	Normals.Init(FVector(0, 0, 1), VerticesArraySize);
+	Tangents.Init(FRuntimeMeshTangent(0, -1, 0), VerticesArraySize);
+	UV.Init(FVector2D(0, 0), VerticesArraySize);
+	VertexColors.Init(FColor::White, VerticesArraySize);
+	
+	GenerateVertices();
+	GenerateTriangles();
+	GenerateMesh();
+	bIsVisible=true;
+	bGenerated=true;
 }
+
+
 
 void UProceduralTerrainComponent::GenerateVertices()
 {
@@ -353,47 +345,20 @@ void UProceduralTerrainComponent::GenerateVertices()
 		}
 	case EComponentShapes::Ve_Sphere:
 		{
-			bool bNeedToGenerateNoise=false;
 			float NoiseResult =0;
-			float SphereOffset=0;
 			switch (ShapeSide)
 			{
 			case EShapeSide::Ve_Top:
 				{
+					
 					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
 					for (int y = 0; y < NoiseSamplesPerLine; y++) {
-						for (int x = 0; x < NoiseSamplesPerLine; x++)
-						{
-							bNeedToGenerateNoise=true;
-							SphereOffset=CreateSphereOffset(x,y);
-							if(bClampTop && x==NoiseSamplesPerLine-1)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bClampBottom && x==0)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bClampRight && y==NoiseSamplesPerLine-1)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bClampLeft && y==0)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bNeedToGenerateNoise)
-							{
-								//NoiseResult = GetNoiseValueForGridCoordinates(x, y,0);
-								NoiseResult=1;
-							}
+						for (int x = 0; x < NoiseSamplesPerLine; x++) {
+							NoiseResult =0;
+							//NoiseResult = GetNoiseValueForGridCoordinates(x, y,0);
 							const int Index = GetIndexForGridCoordinates(x, y);
 							const FVector2D Position = GetPositionForGridCoordinates(x, y);
-							Vertices[Index] = FVector(Position.X, Position.Y, SphereOffset*NoiseOutputScale);
+							Vertices[Index] = FVector(Position.X, Position.Y, NoiseResult).GetSafeNormal();
 							UV[Index] = FVector2D(x, y);
 						}
 					}
@@ -404,36 +369,11 @@ void UProceduralTerrainComponent::GenerateVertices()
 					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
 					for (int y = 0; y < NoiseSamplesPerLine; y++) {
 						for (int x = 0; x < NoiseSamplesPerLine; x++) {
-							bNeedToGenerateNoise=true;
-							SphereOffset=1;
-							if(bClampTop && x==NoiseSamplesPerLine-1)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bClampBottom && x==0)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bClampRight && y==NoiseSamplesPerLine-1)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bClampLeft && y==0)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bNeedToGenerateNoise)
-							{
-								NoiseResult=1;
-								//NoiseResult = GetNoiseValueForGridCoordinates(-x, y,0);
-							}
+							NoiseResult =0;
+							//NoiseResult = GetNoiseValueForGridCoordinates(-x, y,0);
 							const int Index = GetIndexForGridCoordinates(x, y);
 							const FVector2D Position = GetPositionForGridCoordinates(x, y);
-							Vertices[Index] = FVector(-Position.X+TotalSizeToGenerate-NoiseResolution, Position.Y, -(SphereOffset*NoiseOutputScale));
+							Vertices[Index] = FVector(-Position.X+TotalSizeToGenerate-NoiseResolution, Position.Y, -(NoiseResult)).GetSafeNormal();
 							UV[Index] = FVector2D(x, y);
 						}
 					}
@@ -444,36 +384,11 @@ void UProceduralTerrainComponent::GenerateVertices()
 					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
 					for (int z = 0; z < NoiseSamplesPerLine; z++) {
 						for (int x = 0; x < NoiseSamplesPerLine; x++) {
-							bNeedToGenerateNoise=true;
-							SphereOffset=0;
-							if(bClampTop && x==NoiseSamplesPerLine-1)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bClampBottom && x==0)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bClampRight && z== NoiseSamplesPerLine-1)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bClampLeft && z==0)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bNeedToGenerateNoise)
-							{
-								NoiseResult=1;
-								//NoiseResult = GetNoiseValueForGridCoordinates(x, 0,z);
-							}
+							//NoiseResult = GetNoiseValueForGridCoordinates(x, 0,z);
+							NoiseResult =0;
 							const int Index = GetIndexForGridCoordinates(x, z);
 							const FVector2D Position = GetPositionForGridCoordinates(x, z);
-							Vertices[Index] = FVector(Position.X, -(NoiseOutputScale*SphereOffset), Position.Y);
+							Vertices[Index] = FVector(Position.X, -(NoiseResult), Position.Y).GetSafeNormal();
 							UV[Index] = FVector2D(x, z);
 						}
 					}
@@ -484,57 +399,12 @@ void UProceduralTerrainComponent::GenerateVertices()
 					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
 					for (int z = 0; z < NoiseSamplesPerLine; z++) {
 						for (int x = 0; x < NoiseSamplesPerLine; x++) {
-							bNeedToGenerateNoise=true;
-							if(z>x)
-							{
-								if(x>50)
-								{
-									SphereOffset=(2*(100-x))/100;
-								}
-								else
-								{
-									SphereOffset=(2*x)/100;
-								}
-							}
-							else
-							{
-								if(z>50)
-								{
-									SphereOffset=(2*(100-z))/100;
-								}
-								else
-								{
-									SphereOffset=(2*z)/100;
-								}
-							}
-							if(bClampTop && x==0)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bClampBottom && x==NoiseSamplesPerLine-1)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bClampRight && z==0)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bClampLeft && z==NoiseSamplesPerLine-1)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bNeedToGenerateNoise)
-							{
-								NoiseResult=1;
-								//NoiseResult = GetNoiseValueForGridCoordinates(-x, 0,z);
-							}
+						
+							//NoiseResult = GetNoiseValueForGridCoordinates(-x, 0,z);
+							NoiseResult =0;
 							const int Index = GetIndexForGridCoordinates(x, z);
 							const FVector2D Position = GetPositionForGridCoordinates(x, z);
-							Vertices[Index] = FVector(-Position.X+TotalSizeToGenerate-NoiseResolution, (NoiseOutputScale*SphereOffset+TotalSizeToGenerate-NoiseResolution), Position.Y);
+							Vertices[Index] = FVector(-Position.X+TotalSizeToGenerate-NoiseResolution, (NoiseResult+TotalSizeToGenerate-NoiseResolution), Position.Y).GetSafeNormal();
 							UV[Index] = FVector2D(x, z);
 						}
 					}
@@ -545,57 +415,12 @@ void UProceduralTerrainComponent::GenerateVertices()
 					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
 					for (int y = 0; y < NoiseSamplesPerLine; y++) {
 						for (int z = 0; z < NoiseSamplesPerLine; z++) {
-							bNeedToGenerateNoise=true;
-							if(y>z)
-							{
-								if(z>50)
-								{
-									SphereOffset=(2*(100-z))/100;
-								}
-								else
-								{
-									SphereOffset=(2*z)/100;
-								}
-							}
-							else
-							{
-								if(y>50)
-								{
-									SphereOffset=(2*(100-y))/100;
-								}
-								else
-								{
-									SphereOffset=(2*y)/100;
-								}
-							}
-							if(bClampTop && z ==NoiseSamplesPerLine-1)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bClampBottom && z==0)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bClampRight && y==NoiseSamplesPerLine-1)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bClampLeft && y == 0)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bNeedToGenerateNoise)
-							{
-								NoiseResult=1;
-								//NoiseResult = GetNoiseValueForGridCoordinates(0, y,z);
-							}
+							//NoiseResult = GetNoiseValueForGridCoordinates(0, y,z);
+							NoiseResult =0;
+
 							const int Index = GetIndexForGridCoordinates(z, y);
 							const FVector2D Position = GetPositionForGridCoordinates(z, y);
-							Vertices[Index] = FVector(-(SphereOffset*NoiseOutputScale), Position.Y,Position.X );
+							Vertices[Index] = FVector(-(NoiseResult), Position.Y,Position.X ).GetSafeNormal();
 							UV[Index] = FVector2D(z, y);
 						}
 					}
@@ -606,57 +431,11 @@ void UProceduralTerrainComponent::GenerateVertices()
 					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
 					for (int y = 0; y < NoiseSamplesPerLine; y++) {
 						for (int z = 0; z < NoiseSamplesPerLine; z++) {
-							bNeedToGenerateNoise=true;
-							if(y>z)
-							{
-								if(z>50)
-								{
-									SphereOffset=(2*(100-z))/100;
-								}
-								else
-								{
-									SphereOffset=(2*z)/100;
-								}
-							}
-							else
-							{
-								if(y>50)
-								{
-									SphereOffset=(2*(100-y))/100;
-								}
-								else
-								{
-									SphereOffset=(2*y)/100;
-								}
-							}
-							if(bClampTop && z ==0)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bClampBottom && z==NoiseSamplesPerLine-1)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bClampRight && y==0)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bClampLeft && y == NoiseSamplesPerLine-1)
-							{
-								bNeedToGenerateNoise=false;
-								NoiseResult=1;
-							}
-							if(bNeedToGenerateNoise)
-							{
-								NoiseResult=1;
-								//NoiseResult = GetNoiseValueForGridCoordinates(0, -y,z);
-							}
+							//NoiseResult = GetNoiseValueForGridCoordinates(0, -y,z);
+							NoiseResult =0;
 							const int Index = GetIndexForGridCoordinates(z, y);
 							const FVector2D Position = GetPositionForGridCoordinates(z, y);
-							Vertices[Index] = FVector((NoiseOutputScale*SphereOffset+TotalSizeToGenerate-NoiseResolution), -Position.Y+TotalSizeToGenerate-NoiseResolution,Position.X );
+							Vertices[Index] = FVector((NoiseResult+TotalSizeToGenerate-NoiseResolution), -Position.Y+TotalSizeToGenerate-NoiseResolution,Position.X ).GetSafeNormal();
 							UV[Index] = FVector2D(y,z);
 						}
 					}
@@ -664,6 +443,7 @@ void UProceduralTerrainComponent::GenerateVertices()
 				}
 			default: ;
 			}
+			break;
 		}
 	}
 }
@@ -745,77 +525,21 @@ void UProceduralTerrainComponent::LoadMesh()
 	bIsVisible=true;
 }
 
-void UProceduralTerrainComponent::SetNoiseTypeComponent(const EFastNoise_NoiseType NewNoiseType)
+void UProceduralTerrainComponent::InitializeVariables(UNoiseParameters* NoiseParameters)
 {
-	NoiseType = NewNoiseType;
-}
-
-void UProceduralTerrainComponent::SetSeed(const int32 NewSeed)
-{
-	Seed = NewSeed;
-}
-
-void UProceduralTerrainComponent::SetFrequency(const float NewFrequency)
-{
-	Frequency = NewFrequency;
-}
-
-void UProceduralTerrainComponent::SetInterpolation(const EFastNoise_Interp NewInterpolation)
-{
-	Interp = NewInterpolation;
-}
-
-void UProceduralTerrainComponent::SetFractalType(const EFastNoise_FractalType NewFractalType)
-{
-	FractalType = NewFractalType;
-}
-
-void UProceduralTerrainComponent::SetOctaves(const int32 NewOctaves)
-{
-	Octaves=NewOctaves;
-}
-
-void UProceduralTerrainComponent::SetLacunarity(const float NewLacunarity)
-{
-	Lacunarity=NewLacunarity;
-}
-
-void UProceduralTerrainComponent::SetGain(const float NewGain)
-{
-	Gain=NewGain;
-}
-
-void UProceduralTerrainComponent::SetCellularJitter(const float NewCellularJitter)
-{
-	CellularJitter=NewCellularJitter;
-}
-
-void UProceduralTerrainComponent::SetDistanceFunction(const EFastNoise_CellularDistanceFunction NewDistanceFunction)
-{
-	CellularDistanceFunction=NewDistanceFunction;
-}
-
-void UProceduralTerrainComponent::SetReturnType(const EFastNoise_CellularReturnType NewCellularReturnType)
-{
-	CellularReturnType=NewCellularReturnType;
-}
-
-void UProceduralTerrainComponent::SetNoiseResolution(const int NewNoiseResolution)
-{
-	NoiseResolution=NewNoiseResolution;
-}
-
-void UProceduralTerrainComponent::SetTotalSizeToGenerate(const int NewTotalSizeToGenerate)
-{
-	TotalSizeToGenerate=NewTotalSizeToGenerate;
-}
-
-void UProceduralTerrainComponent::SetNoiseInputScale(const float NewNoiseInputScale)
-{
-	NoiseInputScale=NewNoiseInputScale;
-}
-
-void UProceduralTerrainComponent::SetNoiseOutputScale(const float NewNoiseOutputScale)
-{
-	NoiseOutputScale=NewNoiseOutputScale;
+	NoiseType=NoiseParameters->NoiseType;
+	Seed = NoiseParameters->Seed;
+	Frequency= NoiseParameters->Frequency;
+	Interp=NoiseParameters->Interp;
+	FractalType=NoiseParameters->FractalType;
+	Octaves=NoiseParameters->Octaves;
+	Lacunarity=NoiseParameters->Lacunarity;
+	Gain=NoiseParameters->Gain;
+	CellularJitter=NoiseParameters->CellularJitter;
+	CellularDistanceFunction=NoiseParameters->CellularDistanceFunction;
+	CellularReturnType=NoiseParameters->CellularReturnType;
+	NoiseResolution=NoiseParameters->NoiseResolution;
+	TotalSizeToGenerate=NoiseParameters->TotalSizeToGenerate;
+	NoiseInputScale=NoiseParameters->NoiseInputScale;
+	NoiseOutputScale=NoiseParameters->NoiseOutputScale;
 }
