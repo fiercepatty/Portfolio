@@ -4,58 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "ProceduralMeshComponent.h"
 #include "FastNoiseWrapper.h"
+#include "NoiseParameters.h"
+#include "Components/RuntimeMeshComponentStatic.h"
+#include "TerrainEnums.h"
 #include "ProceduralTerrainComponent.generated.h"
 
-UENUM(BlueprintType)
-enum class EComponentShapes: uint8
-{
-	Ve_Plain UMETA(DisplayName="Plain"),
-	
-	Ve_Cube UMETA(DisplayName="Cube"),
-	
-	Ve_Sphere	UMETA(DisplayName = "Sphere")
-	
-};
-UENUM(BlueprintType)
-enum class EShapeSide: uint8
-{
-	/**Positive Z Axis*/
-	Ve_Top		UMETA(DisplayName="Top"),
-
-	/**Negative Z Axis*/
-	Ve_Bottom	UMETA(DisplayName="Bottom"),
-
-	/**Negative Y Axis*/
-	Ve_Left		UMETA(DisplayName = "Left"),
-
-	/**Positive Y Axis*/
-	Ve_Right	UMETA(DisplayName = "Right"),
-
-	/**Positive X Axis*/
-	Ve_Front	UMETA(DisplayName = "Front"),
-
-	/**Negative X Axis*/
-	Ve_Back		UMETA(DisplayName = "Back")
-};
-UENUM(BlueprintType)
-enum class ESubSections: uint8
-{
-	Ve_One			UMETA(DisplayName="1"),
-
-	Ve_Two			UMETA(DisplayName="2"),
-	
-	Ve_Four			UMETA(DisplayName="4"),
-
-	Ve_Eight		UMETA(DisplayName="8"),
-	
-	Ve_Sixteen		UMETA(DisplayName="16"),
-
-	Ve_ThirtyTwo	UMETA(DisplayName="32"),
-	
-	Ve_SixtyFour	UMETA(DisplayName="64")
-};
 
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -68,7 +22,9 @@ public:
 	UProceduralTerrainComponent();
 	
 	UFUNCTION(BlueprintCallable)
-	void GenerateMap(FVector StartingLocation,EComponentShapes ComponentShape = EComponentShapes::Ve_Plain, EShapeSide SideOfShape= EShapeSide::Ve_Top,ESubSections ShapeSection = ESubSections::Ve_One);
+	void GenerateMap(FVector StartingLocation);
+	void GenerateMap(FVector StartingLocation, EShapeSide SideOfShape,ESubSections ShapeSection);
+	void GenerateMapSphere(FVector StartingLocation,EShapeSide SideOfShape,ESubSections ShapeSection);
 	bool IsGenerated() const;
 
 	bool IsVisible() const;
@@ -82,46 +38,9 @@ public:
 	bool bClampLeft = false;
 	bool bClampRight =false;
 
-	/** Set Noise Type*/
-	void SetNoiseTypeComponent(const EFastNoise_NoiseType NewNoiseType);
+	void InitializeVariables(UNoiseParameters* NoiseParameters);
 
-	/** Set seed. */
-	void SetSeed(const int32 NewSeed);
-
-	/** Set frequency. */
-	void SetFrequency(const float NewFrequency);
-
-	/** Set interpolation type. */
-	void SetInterpolation(const EFastNoise_Interp NewInterpolation);
-
-	/** Set fractal type. */
-	void SetFractalType(const EFastNoise_FractalType NewFractalType);
-
-	/** Set fractal octaves. */
-	void SetOctaves(const int32 NewOctaves);
-
-	/** Set fractal lacunarity. */
-	void SetLacunarity(const float NewLacunarity);
-
-	/** Set fractal gain. */
-	void SetGain(const float NewGain);
-
-	/** Set cellular jitter. */
-	void SetCellularJitter(const float NewCellularJitter);
-
-	/** Set cellular distance function. */
-	void SetDistanceFunction(const EFastNoise_CellularDistanceFunction NewDistanceFunction);
-
-	/** Set cellular return type. */
-	void SetReturnType(const EFastNoise_CellularReturnType NewCellularReturnType);
-
-	void SetNoiseResolution(int NewNoiseResolution);
-
-	void SetTotalSizeToGenerate(int NewTotalSizeToGenerate);
-
-	void SetNoiseInputScale(float NewNoiseInputScale);
-
-	void SetNoiseOutputScale(float NewNoiseOutputScale);
+	
 
 	void SetClamping(const bool Top, const bool Bottom, const bool Right,const bool Left) {bClampTop=Top;bClampLeft=Left;bClampRight=Right;bClampBottom=Bottom;};
 
@@ -134,32 +53,25 @@ private:
 	bool bIsVisible = false;
 	TArray<FVector> Vertices;
 	TArray<int> Triangles;
-	
 	int NoiseResolution = 300;
-
 	int TotalSizeToGenerate = 1200;
-	
 	int NoiseSamplesPerLine = TotalSizeToGenerate / NoiseResolution;
 	int VerticesArraySize = NoiseSamplesPerLine * NoiseSamplesPerLine;
-
 	float NoiseInputScale = 0.5; // Making this smaller will "stretch" the perlin noise terrain
-
 	float NoiseOutputScale = 2000; // Making this bigger will scale the terrain's height
-
 	UPROPERTY(VisibleAnywhere)
-	UProceduralMeshComponent* ProceduralMesh;
+	URuntimeMeshComponentStatic* ProceduralMesh;
 
 	void GenerateVertices();
 	void GenerateTriangles();
 	void GenerateMesh() const;
-
 	float GetNoiseValueForGridCoordinates(int X, int Y, int Z) const;
 	int GetIndexForGridCoordinates(int X, int Y) const;
 	FVector2D GetPositionForGridCoordinates(int X, int Y) const;
 
 	// Other things needed to generate the mesh
 	TArray<FVector> Normals;
-	TArray<FProcMeshTangent> Tangents;
+	TArray<FRuntimeMeshTangent> Tangents;
 	TArray<FVector2D> UV;
 	TArray<FColor> VertexColors;
 	

@@ -2,23 +2,45 @@
 
 
 #include "ProceduralTerrainGeneration/ProceduralTerrainComponent.h"
-
 // Sets default values for this component's properties
 UProceduralTerrainComponent::UProceduralTerrainComponent()
 {
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = false;
-	ProceduralMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("GeneratedMesh"));
+	ProceduralMesh = CreateDefaultSubobject<URuntimeMeshComponentStatic>(TEXT("GeneratedMesh"));
 	FastNoise =CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("FastNoiseWrapper"));
 	// ...
 	
 	
 }
 
-void UProceduralTerrainComponent::GenerateMap(const FVector StartingLocation, const EComponentShapes ComponentShape, const EShapeSide SideOfShape, const ESubSections ShapeSection)
+void UProceduralTerrainComponent::GenerateMap(const FVector StartingLocation)
 {
-	Shapes=ComponentShape;
+	ComponentLocation= StartingLocation;
+	Shapes=EComponentShapes::Ve_Plain;
+
+	FastNoise->SetupFastNoise(NoiseType, Seed, Frequency, Interp, FractalType,
+				Octaves,Lacunarity,Gain,CellularJitter, CellularDistanceFunction, CellularReturnType);
+
+	NoiseSamplesPerLine = TotalSizeToGenerate / NoiseResolution;
+	VerticesArraySize = NoiseSamplesPerLine * NoiseSamplesPerLine;
+	Normals.Init(FVector(0, 0, 1), VerticesArraySize);
+	Tangents.Init(FRuntimeMeshTangent(0, -1, 0), VerticesArraySize);
+	UV.Init(FVector2D(0, 0), VerticesArraySize);
+	VertexColors.Init(FColor::White, VerticesArraySize);
+	
+	GenerateVertices();
+	GenerateTriangles();
+	GenerateMesh();
+	bIsVisible=true;
+	bGenerated=true;
+}
+
+void UProceduralTerrainComponent::GenerateMapSphere(FVector StartingLocation, EShapeSide SideOfShape,
+	ESubSections ShapeSection)
+{
+	Shapes=EComponentShapes::Ve_Sphere;
 	ShapeSubSections=ShapeSection;
 	ShapeSide=SideOfShape;
 	ComponentLocation= StartingLocation;
@@ -29,7 +51,7 @@ void UProceduralTerrainComponent::GenerateMap(const FVector StartingLocation, co
 	NoiseSamplesPerLine = TotalSizeToGenerate / NoiseResolution;
 	VerticesArraySize = NoiseSamplesPerLine * NoiseSamplesPerLine;
 	Normals.Init(FVector(0, 0, 1), VerticesArraySize);
-	//Tangents.Init(FRuntimeMeshTangent(0, -1, 0), VerticesArraySize);
+	Tangents.Init(FRuntimeMeshTangent(0, -1, 0), VerticesArraySize);
 	UV.Init(FVector2D(0, 0), VerticesArraySize);
 	VertexColors.Init(FColor::White, VerticesArraySize);
 	
@@ -39,6 +61,32 @@ void UProceduralTerrainComponent::GenerateMap(const FVector StartingLocation, co
 	bIsVisible=true;
 	bGenerated=true;
 }
+
+void UProceduralTerrainComponent::GenerateMap(const FVector StartingLocation, const EShapeSide SideOfShape, const ESubSections ShapeSection)
+{
+	Shapes=EComponentShapes::Ve_Cube;
+	ShapeSubSections=ShapeSection;
+	ShapeSide=SideOfShape;
+	ComponentLocation= StartingLocation;
+	
+	FastNoise->SetupFastNoise(NoiseType, Seed, Frequency, Interp, FractalType,
+				Octaves,Lacunarity,Gain,CellularJitter, CellularDistanceFunction, CellularReturnType);
+
+	NoiseSamplesPerLine = TotalSizeToGenerate / NoiseResolution;
+	VerticesArraySize = NoiseSamplesPerLine * NoiseSamplesPerLine;
+	Normals.Init(FVector(0, 0, 1), VerticesArraySize);
+	Tangents.Init(FRuntimeMeshTangent(0, -1, 0), VerticesArraySize);
+	UV.Init(FVector2D(0, 0), VerticesArraySize);
+	VertexColors.Init(FColor::White, VerticesArraySize);
+	
+	GenerateVertices();
+	GenerateTriangles();
+	GenerateMesh();
+	bIsVisible=true;
+	bGenerated=true;
+}
+
+
 
 void UProceduralTerrainComponent::GenerateVertices()
 {
@@ -299,39 +347,107 @@ void UProceduralTerrainComponent::GenerateVertices()
 		}
 	case EComponentShapes::Ve_Sphere:
 		{
+			float NoiseResult =0;
 			switch (ShapeSide)
 			{
 			case EShapeSide::Ve_Top:
 				{
+					
+					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
+					for (int y = 0; y < NoiseSamplesPerLine; y++) {
+						for (int x = 0; x < NoiseSamplesPerLine; x++) {
+							NoiseResult =0;
+							//NoiseResult = GetNoiseValueForGridCoordinates(x, y,0);
+							const int Index = GetIndexForGridCoordinates(x, y);
+							const FVector2D Position = GetPositionForGridCoordinates(x, y);
+							Vertices[Index] = FVector(Position.X, Position.Y, NoiseResult).GetSafeNormal();
+							UV[Index] = FVector2D(x, y);
+						}
+					}
 					break;
 				}
 			case EShapeSide::Ve_Bottom:
 				{
+					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
+					for (int y = 0; y < NoiseSamplesPerLine; y++) {
+						for (int x = 0; x < NoiseSamplesPerLine; x++) {
+							NoiseResult =0;
+							//NoiseResult = GetNoiseValueForGridCoordinates(-x, y,0);
+							const int Index = GetIndexForGridCoordinates(x, y);
+							const FVector2D Position = GetPositionForGridCoordinates(x, y);
+							Vertices[Index] = FVector(-Position.X+TotalSizeToGenerate-NoiseResolution, Position.Y, -(NoiseResult)).GetSafeNormal();
+							UV[Index] = FVector2D(x, y);
+						}
+					}
 					break;
 				}
 			case EShapeSide::Ve_Left:
 				{
+					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
+					for (int z = 0; z < NoiseSamplesPerLine; z++) {
+						for (int x = 0; x < NoiseSamplesPerLine; x++) {
+							//NoiseResult = GetNoiseValueForGridCoordinates(x, 0,z);
+							NoiseResult =0;
+							const int Index = GetIndexForGridCoordinates(x, z);
+							const FVector2D Position = GetPositionForGridCoordinates(x, z);
+							Vertices[Index] = FVector(Position.X, -(NoiseResult), Position.Y).GetSafeNormal();
+							UV[Index] = FVector2D(x, z);
+						}
+					}
 					break;
 				}
 			case EShapeSide::Ve_Right:
 				{
+					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
+					for (int z = 0; z < NoiseSamplesPerLine; z++) {
+						for (int x = 0; x < NoiseSamplesPerLine; x++) {
+						
+							//NoiseResult = GetNoiseValueForGridCoordinates(-x, 0,z);
+							NoiseResult =0;
+							const int Index = GetIndexForGridCoordinates(x, z);
+							const FVector2D Position = GetPositionForGridCoordinates(x, z);
+							Vertices[Index] = FVector(-Position.X+TotalSizeToGenerate-NoiseResolution, (NoiseResult+TotalSizeToGenerate-NoiseResolution), Position.Y).GetSafeNormal();
+							UV[Index] = FVector2D(x, z);
+						}
+					}
 					break;
 				}
 			case EShapeSide::Ve_Front:
 				{
+					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
+					for (int y = 0; y < NoiseSamplesPerLine; y++) {
+						for (int z = 0; z < NoiseSamplesPerLine; z++) {
+							//NoiseResult = GetNoiseValueForGridCoordinates(0, y,z);
+							NoiseResult =0;
+
+							const int Index = GetIndexForGridCoordinates(z, y);
+							const FVector2D Position = GetPositionForGridCoordinates(z, y);
+							Vertices[Index] = FVector(-(NoiseResult), Position.Y,Position.X ).GetSafeNormal();
+							UV[Index] = FVector2D(z, y);
+						}
+					}
 					break;
 				}
 			case EShapeSide::Ve_Back:
 				{
+					Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
+					for (int y = 0; y < NoiseSamplesPerLine; y++) {
+						for (int z = 0; z < NoiseSamplesPerLine; z++) {
+							//NoiseResult = GetNoiseValueForGridCoordinates(0, -y,z);
+							NoiseResult =0;
+							const int Index = GetIndexForGridCoordinates(z, y);
+							const FVector2D Position = GetPositionForGridCoordinates(z, y);
+							Vertices[Index] = FVector((NoiseResult+TotalSizeToGenerate-NoiseResolution), -Position.Y+TotalSizeToGenerate-NoiseResolution,Position.X ).GetSafeNormal();
+							UV[Index] = FVector2D(y,z);
+						}
+					}
 					break;
 				}
 			default: ;
 			}
 			break;
 		}
-	default: ;
 	}
-	
 }
 
 void UProceduralTerrainComponent::GenerateTriangles()
@@ -366,7 +482,7 @@ void UProceduralTerrainComponent::GenerateTriangles()
 
 void UProceduralTerrainComponent::GenerateMesh() const
 {
-	ProceduralMesh->CreateMeshSection(0,Vertices,Triangles,Normals,UV,VertexColors,Tangents,true);
+	ProceduralMesh->CreateSectionFromComponents(0,0,0,Vertices,Triangles,Normals,UV,VertexColors,Tangents);
 }
 
 float UProceduralTerrainComponent::GetNoiseValueForGridCoordinates(const int X, const int Y, const int Z) const
@@ -411,77 +527,21 @@ void UProceduralTerrainComponent::LoadMesh()
 	bIsVisible=true;
 }
 
-void UProceduralTerrainComponent::SetNoiseTypeComponent(const EFastNoise_NoiseType NewNoiseType)
+void UProceduralTerrainComponent::InitializeVariables(UNoiseParameters* NoiseParameters)
 {
-	NoiseType = NewNoiseType;
-}
-
-void UProceduralTerrainComponent::SetSeed(const int32 NewSeed)
-{
-	Seed = NewSeed;
-}
-
-void UProceduralTerrainComponent::SetFrequency(const float NewFrequency)
-{
-	Frequency = NewFrequency;
-}
-
-void UProceduralTerrainComponent::SetInterpolation(const EFastNoise_Interp NewInterpolation)
-{
-	Interp = NewInterpolation;
-}
-
-void UProceduralTerrainComponent::SetFractalType(const EFastNoise_FractalType NewFractalType)
-{
-	FractalType = NewFractalType;
-}
-
-void UProceduralTerrainComponent::SetOctaves(const int32 NewOctaves)
-{
-	Octaves=NewOctaves;
-}
-
-void UProceduralTerrainComponent::SetLacunarity(const float NewLacunarity)
-{
-	Lacunarity=NewLacunarity;
-}
-
-void UProceduralTerrainComponent::SetGain(const float NewGain)
-{
-	Gain=NewGain;
-}
-
-void UProceduralTerrainComponent::SetCellularJitter(const float NewCellularJitter)
-{
-	CellularJitter=NewCellularJitter;
-}
-
-void UProceduralTerrainComponent::SetDistanceFunction(const EFastNoise_CellularDistanceFunction NewDistanceFunction)
-{
-	CellularDistanceFunction=NewDistanceFunction;
-}
-
-void UProceduralTerrainComponent::SetReturnType(const EFastNoise_CellularReturnType NewCellularReturnType)
-{
-	CellularReturnType=NewCellularReturnType;
-}
-
-void UProceduralTerrainComponent::SetNoiseResolution(const int NewNoiseResolution)
-{
-	NoiseResolution=NewNoiseResolution;
-}
-
-void UProceduralTerrainComponent::SetTotalSizeToGenerate(const int NewTotalSizeToGenerate)
-{
-	TotalSizeToGenerate=NewTotalSizeToGenerate;
-}
-
-void UProceduralTerrainComponent::SetNoiseInputScale(const float NewNoiseInputScale)
-{
-	NoiseInputScale=NewNoiseInputScale;
-}
-
-void UProceduralTerrainComponent::SetNoiseOutputScale(const float NewNoiseOutputScale)
-{
-	NoiseOutputScale=NewNoiseOutputScale;
+	NoiseType=NoiseParameters->NoiseType;
+	Seed = NoiseParameters->Seed;
+	Frequency= NoiseParameters->Frequency;
+	Interp=NoiseParameters->Interp;
+	FractalType=NoiseParameters->FractalType;
+	Octaves=NoiseParameters->Octaves;
+	Lacunarity=NoiseParameters->Lacunarity;
+	Gain=NoiseParameters->Gain;
+	CellularJitter=NoiseParameters->CellularJitter;
+	CellularDistanceFunction=NoiseParameters->CellularDistanceFunction;
+	CellularReturnType=NoiseParameters->CellularReturnType;
+	NoiseResolution=NoiseParameters->NoiseResolution;
+	TotalSizeToGenerate=NoiseParameters->TotalSizeToGenerate;
+	NoiseInputScale=NoiseParameters->NoiseInputScale;
+	NoiseOutputScale=NoiseParameters->NoiseOutputScale;
 }
