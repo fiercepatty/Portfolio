@@ -12,6 +12,8 @@ UProceduralTerrainComponent::UProceduralTerrainComponent()
 	ProceduralMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("GeneratedMesh"));
 	FastNoise =CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("FastNoiseWrapper"));
 	// ...
+	
+	
 }
 
 void UProceduralTerrainComponent::GenerateMap(const FVector StartingLocation, const EComponentShapes ComponentShape, const EShapeSide SideOfShape, const ESubSections ShapeSection)
