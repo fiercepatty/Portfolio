@@ -10,6 +10,7 @@ UProceduralTerrainComponent::UProceduralTerrainComponent()
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = true;
 	ProceduralMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("GeneratedMesh"));
+	
 	FastNoise =CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("FastNoiseWrapper"));
 	// ...
 }
@@ -35,12 +36,14 @@ void UProceduralTerrainComponent::GenerateMap(FVector StartLocation)
 	bGenerated=true;
 }
 
-bool UProceduralTerrainComponent::IsGenerated()
+
+
+bool UProceduralTerrainComponent::IsGenerated() const
 {
 	return bGenerated;
 }
 
-bool UProceduralTerrainComponent::IsVisible()
+bool UProceduralTerrainComponent::IsVisible() const
 {
 	return bIsVisible;
 }
@@ -62,56 +65,57 @@ void UProceduralTerrainComponent::GenerateVertices()
 	Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
 	for (int y = 0; y < NoiseSamplesPerLine; y++) {
 		for (int x = 0; x < NoiseSamplesPerLine; x++) {
-			float NoiseResult = GetNoiseValueForGridCoordinates(x, y);
-			int index = GetIndexForGridCoordinates(x, y);
-			FVector2D Position = GetPositionForGridCoordinates(x, y);
-			Vertices[index] = FVector(Position.X, Position.Y, NoiseResult);
-			UV[index] = FVector2D(x, y);
+			const float NoiseResult = GetNoiseValueForGridCoordinates(x, y);
+			const int Index = GetIndexForGridCoordinates(x, y);
+			const FVector2D Position = GetPositionForGridCoordinates(x, y);
+			Vertices[Index] = FVector(Position.X, Position.Y, NoiseResult);
+			UV[Index] = FVector2D(x, y);
 		}
 	}
 }
 
 void UProceduralTerrainComponent::GenerateTriangles()
 {
-	int QuadSize = 6; // This is the number of triangle indexes making up a quad (square section of the grid)
-	int NumberOfQuadsPerLine = NoiseSamplesPerLine - 1; // We have one less quad per line than the amount of vertices, since each vertex is the start of a quad except the last ones
+	constexpr int QuadSize = 6; // This is the number of triangle indexes making up a quad (square section of the grid)
+	const int NumberOfQuadsPerLine = NoiseSamplesPerLine - 1; // We have one less quad per line than the amount of vertices, since each vertex is the start of a quad except the last ones
 	// In our triangles array, we need 6 values per quad
-	int TrianglesArraySize = NumberOfQuadsPerLine * NumberOfQuadsPerLine * QuadSize;
+	const int TrianglesArraySize = NumberOfQuadsPerLine * NumberOfQuadsPerLine * QuadSize;
 	Triangles.Init(0, TrianglesArraySize);
 
 	for (int y = 0; y < NumberOfQuadsPerLine; y++) {
 		for (int x = 0; x < NumberOfQuadsPerLine; x++) {
-			int QuadIndex = x + y * NumberOfQuadsPerLine;
-			int TriangleIndex = QuadIndex * QuadSize;
+			const int QuadIndex = x + y * NumberOfQuadsPerLine;
+			const int TriangleIndex = QuadIndex * QuadSize;
 
 			// Getting the indexes of the four vertices making up this quad
-			int bottomLeftIndex = GetIndexForGridCoordinates(x, y);
-			int topLeftIndex = GetIndexForGridCoordinates(x, y + 1);
-			int topRightIndex = GetIndexForGridCoordinates(x + 1, y + 1);
-			int bottomRightIndex = GetIndexForGridCoordinates(x + 1, y);
+			const int BottomLeftIndex = GetIndexForGridCoordinates(x, y);
+			const int TopLeftIndex = GetIndexForGridCoordinates(x, y + 1);
+			const int TopRightIndex = GetIndexForGridCoordinates(x + 1, y + 1);
+			const int BottomRightIndex = GetIndexForGridCoordinates(x + 1, y);
 
 			// Assigning the 6 triangle points to the corresponding vertex indexes, by going counter-clockwise.
-			Triangles[TriangleIndex] = bottomLeftIndex;
-			Triangles[TriangleIndex + 1] = topLeftIndex;
-			Triangles[TriangleIndex + 2] = topRightIndex;
-			Triangles[TriangleIndex + 3] = bottomLeftIndex;
-			Triangles[TriangleIndex + 4] = topRightIndex;
-			Triangles[TriangleIndex + 5] = bottomRightIndex;
+			Triangles[TriangleIndex] = BottomLeftIndex;
+			Triangles[TriangleIndex + 1] = TopLeftIndex;
+			Triangles[TriangleIndex + 2] = TopRightIndex;
+			Triangles[TriangleIndex + 3] = BottomLeftIndex;
+			Triangles[TriangleIndex + 4] = TopRightIndex;
+			Triangles[TriangleIndex + 5] = BottomRightIndex;
 		}
 	}
 }
 
-void UProceduralTerrainComponent::GenerateMesh()
+void UProceduralTerrainComponent::GenerateMesh() const
 {
 	ProceduralMesh->CreateMeshSection(0,Vertices,Triangles,Normals,UV,VertexColors,Tangents,true);
+	
 }
 
-float UProceduralTerrainComponent::GetNoiseValueForGridCoordinates(int x, int y)
+float UProceduralTerrainComponent::GetNoiseValueForGridCoordinates(const int X, const int Y) const
 {
 	if(FastNoise)
 	{
 		return FastNoise->GetNoise3D(
-		(x+ ComponentLocation.X),(y+ComponentLocation.Y),
+		(X+ ComponentLocation.X),(Y+ComponentLocation.Y),
 		0.0)* NoiseOutputScale;
 	}
 	else
@@ -120,94 +124,18 @@ float UProceduralTerrainComponent::GetNoiseValueForGridCoordinates(int x, int y)
 	}
 }
 
-int UProceduralTerrainComponent::GetIndexForGridCoordinates(int x, int y)
+int UProceduralTerrainComponent::GetIndexForGridCoordinates(const int X, const int Y) const
 {
-	return x + y * NoiseSamplesPerLine;
+	return X + Y * NoiseSamplesPerLine;
 }
 
-FVector2D UProceduralTerrainComponent::GetPositionForGridCoordinates(int x, int y)
+FVector2D UProceduralTerrainComponent::GetPositionForGridCoordinates(const int X, const int Y) const
 {
 	return FVector2D(
-		x * NoiseResolution,
-		y * NoiseResolution
+		X * NoiseResolution,
+		Y * NoiseResolution
 	);
 }
-
-void UProceduralTerrainComponent::SetNoiseTypeComponent(const EFastNoise_NoiseType NewNoiseType)
-{
-	NoiseType = NewNoiseType;
-}
-
-void UProceduralTerrainComponent::SetSeed(const int32 NewSeed)
-{
-	Seed = NewSeed;
-}
-
-void UProceduralTerrainComponent::SetFrequency(const float NewFrequency)
-{
-	Frequency = NewFrequency;
-}
-
-void UProceduralTerrainComponent::SetInterpolation(const EFastNoise_Interp NewInterpolation)
-{
-	Interp = NewInterpolation;
-}
-
-void UProceduralTerrainComponent::SetFractalType(const EFastNoise_FractalType NewFractalType)
-{
-	FractalType = NewFractalType;
-}
-
-void UProceduralTerrainComponent::SetOctaves(const int32 NewOctaves)
-{
-	Octaves=NewOctaves;
-}
-
-void UProceduralTerrainComponent::SetLacunarity(const float NewLacunarity)
-{
-	Lacunarity=NewLacunarity;
-}
-
-void UProceduralTerrainComponent::SetGain(const float NewGain)
-{
-	Gain=NewGain;
-}
-
-void UProceduralTerrainComponent::SetCellularJitter(const float NewCellularJitter)
-{
-	CellularJitter=NewCellularJitter;
-}
-
-void UProceduralTerrainComponent::SetDistanceFunction(const EFastNoise_CellularDistanceFunction NewDistanceFunction)
-{
-	CellularDistanceFunction=NewDistanceFunction;
-}
-
-void UProceduralTerrainComponent::SetReturnType(const EFastNoise_CellularReturnType NewCellularReturnType)
-{
-	CellularReturnType=NewCellularReturnType;
-}
-
-void UProceduralTerrainComponent::SetNoiseResolution(int NewNoiseResolution)
-{
-	NoiseResolution=NewNoiseResolution;
-}
-
-void UProceduralTerrainComponent::SetTotalSizeToGenerate(int NewTotalSizeToGenerate)
-{
-	TotalSizeToGenerate=NewTotalSizeToGenerate;
-}
-
-void UProceduralTerrainComponent::SetNoiseInputScale(float NewNoiseInputScale)
-{
-	NoiseInputScale=NewNoiseInputScale;
-}
-
-void UProceduralTerrainComponent::SetNoiseOutputScale(float NewNoiseOutputScale)
-{
-	NoiseOutputScale=NewNoiseOutputScale;
-}
-
 
 
 

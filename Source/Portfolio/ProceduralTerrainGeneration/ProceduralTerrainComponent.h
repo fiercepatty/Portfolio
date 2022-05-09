@@ -17,93 +17,38 @@ class PORTFOLIO_API UProceduralTerrainComponent : public UActorComponent
 public:	
 	// Sets default values for this component's properties
 	UProceduralTerrainComponent();
+
+	
 	
 	UFUNCTION(BlueprintCallable)
 	void GenerateMap(FVector StartingLocation);
 
-	bool IsGenerated();
 
-	bool IsVisible();
+	bool IsGenerated() const;
+
+	bool IsVisible() const;
 
 	void UnLoadMesh();
 
 	void LoadMesh();
 
-	/** Set Noise Type*/
-	void SetNoiseTypeComponent(const EFastNoise_NoiseType NewNoiseType);
+	FVector NoiseComponentStartLocation;
 
-	/** Set seed. */
-	void SetSeed(const int32 NewSeed);
-
-	/** Set frequency. */
-	void SetFrequency(const float NewFrequency);
-
-	/** Set interpolation type. */
-	void SetInterpolation(const EFastNoise_Interp NewInterpolation);
-
-	/** Set fractal type. */
-	void SetFractalType(const EFastNoise_FractalType NewFractalType);
-
-	/** Set fractal octaves. */
-	void SetOctaves(const int32 NewOctaves);
-
-	/** Set fractal lacunarity. */
-	void SetLacunarity(const float NewLacunarity);
-
-	/** Set fractal gain. */
-	void SetGain(const float NewGain);
-
-	/** Set cellular jitter. */
-	void SetCellularJitter(const float NewCellularJitter);
-
-	/** Set cellular distance function. */
-	void SetDistanceFunction(const EFastNoise_CellularDistanceFunction NewDistanceFunction);
-
-	/** Set cellular return type. */
-	void SetReturnType(const EFastNoise_CellularReturnType NewCellularReturnType);
-
-	void SetNoiseResolution(int NewNoiseResolution);
-
-	void SetTotalSizeToGenerate(int NewTotalSizeToGenerate);
-
-	void SetNoiseInputScale(float NewNoiseInputScale);
-
-	void SetNoiseOutputScale(float NewNoiseOutputScale);
-
-private:
-	FVector ComponentLocation;
-	bool bGenerated =false;
-	bool bIsVisible = false;
-	TArray<FVector> Vertices;
-	TArray<int> Triangles;
+	int CurrentIndexFromActiveLandscape = 999;
+	
+	int LandscapeAmount=3;
 	
 	int NoiseResolution = 300;
 
 	int TotalSizeToGenerate = 1200;
 	
+	float NoiseInputScale = 0.5;
+
+	float NoiseOutputScale = 2000;
+
 	int NoiseSamplesPerLine = TotalSizeToGenerate / NoiseResolution;
-	int VerticesArraySize = NoiseSamplesPerLine * NoiseSamplesPerLine;
-
-	float NoiseInputScale = 0.5; // Making this smaller will "stretch" the perlin noise terrain
-
-	float NoiseOutputScale = 2000; // Making this bigger will scale the terrain's height
-
-	UPROPERTY(VisibleAnywhere)
-	UProceduralMeshComponent* ProceduralMesh;
-
-	void GenerateVertices();
-	void GenerateTriangles();
-	void GenerateMesh();
-
-	float GetNoiseValueForGridCoordinates(int x, int y);
-	int GetIndexForGridCoordinates(int x, int y);
-	FVector2D GetPositionForGridCoordinates(int x, int y);
-
-	// Other things needed to generate the mesh
-	TArray<FVector> Normals;
-	TArray<FProcMeshTangent> Tangents;
-	TArray<FVector2D> UV;
-	TArray<FColor> VertexColors;
+	
+	int ChunkViewDistance=3;
 	
 	EFastNoise_NoiseType NoiseType = EFastNoise_NoiseType::Simplex;
 
@@ -127,6 +72,35 @@ private:
 
 	EFastNoise_CellularReturnType CellularReturnType = EFastNoise_CellularReturnType::CellValue;
 	
-	UPROPERTY(VisibleAnywhere)
+	UPROPERTY(VisibleAnywhere, Category = "Terrian Generation | Noise Settings")
 	UFastNoiseWrapper* FastNoise;
+
+	int VerticesArraySize = NoiseSamplesPerLine * NoiseSamplesPerLine;
+
+private:
+	
+	FVector ComponentLocation;
+	bool bGenerated =false;
+	bool bIsVisible = false;
+	TArray<FVector> Vertices;
+	TArray<int> Triangles;
+
+	UPROPERTY(VisibleAnywhere)
+	UProceduralMeshComponent* ProceduralMesh;
+
+
+	void GenerateVertices();
+	void GenerateTriangles();
+	void GenerateMesh() const;
+
+	float GetNoiseValueForGridCoordinates(int X, int Y) const;
+	int GetIndexForGridCoordinates(int X, int Y) const;
+	FVector2D GetPositionForGridCoordinates(int X, int Y) const;
+
+	// Other things needed to generate the mesh
+	TArray<FVector> Normals;
+	TArray<FProcMeshTangent> Tangents;
+	TArray<FVector2D> UV;
+	TArray<FColor> VertexColors;
+	
 };
