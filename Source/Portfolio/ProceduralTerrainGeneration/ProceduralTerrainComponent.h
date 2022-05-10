@@ -9,6 +9,7 @@
 #include "ProceduralTerrainComponent.generated.h"
 
 
+struct FTerrainInfo;
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class PORTFOLIO_API UProceduralTerrainComponent : public UActorComponent
 {
@@ -18,12 +19,14 @@ public:
 	// Sets default values for this component's properties
 	UProceduralTerrainComponent();
 
-	
+	//Init the Fast Noise Or the noise values used for our terrain are init here
+	void InitializeFastNoise(FTerrainInfo Terrain);
+
+	void InitializeConnectionNoise(FTerrainInfo Terrain) ;
 	
 	UFUNCTION(BlueprintCallable)
 	void GenerateMap(FVector StartingLocation);
-
-
+	
 	bool IsGenerated() const;
 
 	bool IsVisible() const;
@@ -33,10 +36,6 @@ public:
 	void LoadMesh();
 
 	FVector NoiseComponentStartLocation;
-
-	int CurrentIndexFromActiveLandscape = 999;
-	
-	int LandscapeAmount=3;
 	
 	int NoiseResolution = 300;
 
@@ -44,38 +43,23 @@ public:
 	
 	float NoiseInputScale = 0.5;
 
-	float NoiseOutputScale = 2000;
+	float FastNoiseOutputScale = 2000;
+
+	float ConnectionNoiseOutputScale =2000;
+	
 
 	int NoiseSamplesPerLine = TotalSizeToGenerate / NoiseResolution;
-	
-	int ChunkViewDistance=3;
-	
-	EFastNoise_NoiseType NoiseType = EFastNoise_NoiseType::Simplex;
-
-	int32 Seed = 1337;
-
-	float Frequency = 0.01f;
-
-	EFastNoise_Interp Interp = EFastNoise_Interp::Quintic;
-
-	EFastNoise_FractalType FractalType = EFastNoise_FractalType::FBM;
-
-	int32 Octaves = 3;
-
-	float Lacunarity = 2.0f;
-
-	float Gain = 0.5f;
-
-	float CellularJitter = 0.45f;
-
-	EFastNoise_CellularDistanceFunction CellularDistanceFunction = EFastNoise_CellularDistanceFunction::Euclidean;
-
-	EFastNoise_CellularReturnType CellularReturnType = EFastNoise_CellularReturnType::CellValue;
 	
 	UPROPERTY(VisibleAnywhere, Category = "Terrian Generation | Noise Settings")
 	UFastNoiseWrapper* FastNoise;
 
+	UPROPERTY(VisibleAnywhere, Category = "Terrian Generation | Noise Settings")
+	UFastNoiseWrapper* ConnectionNoise;
+
 	int VerticesArraySize = NoiseSamplesPerLine * NoiseSamplesPerLine;
+
+	UPROPERTY(VisibleAnywhere)
+	UProceduralMeshComponent* ProceduralMesh;
 
 private:
 	
@@ -85,8 +69,7 @@ private:
 	TArray<FVector> Vertices;
 	TArray<int> Triangles;
 
-	UPROPERTY(VisibleAnywhere)
-	UProceduralMeshComponent* ProceduralMesh;
+	
 
 
 	void GenerateVertices();

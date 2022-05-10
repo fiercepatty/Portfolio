@@ -30,14 +30,20 @@ public:
 
 	/**Need at least one of these to generate terrain
 	 * If you have more than one when it is creating terrain it will pick one of these values randomly when creating the terrain
-	 * On the edge of two terrain locations it take the noise value of the terrain that was already there. It has a higher chance
-	 * Of keeping the noise value of the neighbor that told it to create itself
+	 * On the edge of two terrain locations it will use the TerrainConnectionOptions values which will allow for terrain to be connected to one another
+	 * When pick the noise value from the options it has a higher chance of keeping the noise value of the neighbor that told it to create itself
 	 * So if its south neighbor is what told it to create itself there will be a higher chance to use that neighbors noise options
 	 * Percent Chance will be controlled by ChanceToContinueTerrain- Between 0 and 1, 0 meaning randomly choose another terrain option and 1 being always take neighbors terrain option
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Noise")
 	TArray<FTerrainInfo> AllTerrainOptions;
 
+	/**
+	 * Used for the connection areas of the terrain
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Noise")
+	FTerrainInfo TerrainConnectionOptions;
+	
 	/**
 	 * Percent Chance to pick a random option out of the AllTerrainOptions for the Noise Value
 	 * Clamped Between 0 and 1
@@ -50,10 +56,6 @@ public:
 	/**How large the terrain piece are individually*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Noise")
 	float TotalSizeToGenerate=1200;
-
-	/**Change this to get a different effect from the same parameters*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Noise")
-	float Seed = 1317;
 
 	/**Divide this by the total size to generate and that will give you how many vertices going across the square there will be. So basically divide this by the total size to generate and the square it and that
 	 *is how many verts are in your mesh. But remember there are multiple of these meshes on the map at a time so doing go crazy*/
@@ -81,19 +83,19 @@ public:
 	void GenerateSquareCorners();
 
 	/**Move you square north by one square*/
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Terrian Generation")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Terrian Movement")
 	void MoveSquareNorth();
 
 	/**Move you square East by one square*/
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Terrian Generation")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Terrian Movement")
 	void MoveSquareEast();
 
 	/**Move you square South by one square*/
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Terrian Generation")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Terrian Movement")
 	void MoveSquareSouth();
 
 	/**Move you square West by one square*/
-	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Terrian Generation")
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Terrian Movement")
 	void MoveSquareWest();
 
 	/**How many cubes away from the active cube that the player can see
@@ -108,8 +110,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Settings" ,meta = (ClampMin=1))
 	int VisibleRange = 1;
 
+
+	//Getter for the origin
+	inline AProceduralTerrainGen* GetOrigin() const {return Origin;}
+
 private:
 
+	//Have the manager create the terrain at runtime because it needs to be setup in a certain way so if the user has changed things inside the individual pieces it will cause issues so we dont give them the chance
+	virtual void BeginPlay() override;
+	
 	//Helper function for when the map is actually spawned in
 	FVector UpdateNoiseSamplingLocation(FVector StartLocation, EDirection Dir) const;
 	

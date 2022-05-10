@@ -11,27 +11,38 @@ AProceduralTerrainGen::AProceduralTerrainGen()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
-	
 	if(!ProceduralTerrain)
 	{
 		ProceduralTerrain = CreateDefaultSubobject<UProceduralTerrainComponent>(TEXT("ProceduralTerrain"));
+		RootComponent=ProceduralTerrain->ProceduralMesh;
 	}
+	//Create and attach the trigger box to the root component that is the procedural mesh
+	TerrainTriggerBox=CreateDefaultSubobject<UBoxComponent>(TEXT("TerrainTriggerBox"));
+	TerrainTriggerBox->AttachToComponent(RootComponent,FAttachmentTransformRules::KeepRelativeTransform);
+	TerrainTriggerBox->SetCollisionProfileName(FName(TEXT("Trigger")));
+	TerrainTriggerBox->SetGenerateOverlapEvents(true);	
+	
+
+
 	
 }
 
 void AProceduralTerrainGen::GenerateTerrain()
 {
 	GenerateCurrentLandscape();
+	//After we generate the landscape we want to find any and all connected landscapes
 	FindConnections(this);
 }
 
 
 void AProceduralTerrainGen::FindConnections(AProceduralTerrainGen* CurrentTerrain) const
 {
+	//We want to look in more of a center location instead of the bottom left corner so that if we overlap with something we know that it is the correct mesh
 	FVector StartLocation =CurrentTerrain->GetActorLocation() +FVector(ProceduralTerrain->NoiseResolution,ProceduralTerrain->NoiseResolution,0);
+	//If we dont have a north then we look for one
 	if(!CurrentTerrain->NorthTerrainGenerated)
 	{
-		FHitResult Out =LineTrace(StartLocation+FVector(ProceduralTerrain->TotalSizeToGenerate-ProceduralTerrain->NoiseResolution,0,0),ProceduralTerrain->NoiseOutputScale);
+		FHitResult Out =LineTrace(StartLocation+FVector(ProceduralTerrain->TotalSizeToGenerate-ProceduralTerrain->NoiseResolution,0,0),ProceduralTerrain->FastNoiseOutputScale);
 		if(Out.IsValidBlockingHit())
 		{
 			AProceduralTerrainGen* Gen =Cast<AProceduralTerrainGen>(Out.Actor);
@@ -43,9 +54,10 @@ void AProceduralTerrainGen::FindConnections(AProceduralTerrainGen* CurrentTerrai
 			}
 		}
 	}
+	//If we dont have a east then we look for one
 	if(!CurrentTerrain->EastTerrainGenerated)
 	{
-		FHitResult Out =LineTrace(StartLocation+FVector(0,ProceduralTerrain->TotalSizeToGenerate-ProceduralTerrain->NoiseResolution,0),ProceduralTerrain->NoiseOutputScale);
+		FHitResult Out =LineTrace(StartLocation+FVector(0,ProceduralTerrain->TotalSizeToGenerate-ProceduralTerrain->NoiseResolution,0),ProceduralTerrain->FastNoiseOutputScale);
 		if(Out.IsValidBlockingHit())
 		{
 			AProceduralTerrainGen* Gen =Cast<AProceduralTerrainGen>(Out.Actor);
@@ -57,9 +69,10 @@ void AProceduralTerrainGen::FindConnections(AProceduralTerrainGen* CurrentTerrai
 			}
 		}
 	}
+	//If we dont have a south we look for one
 	if(!CurrentTerrain->SouthTerrainGenerated)
 	{
-		FHitResult Out =LineTrace(StartLocation-FVector(ProceduralTerrain->TotalSizeToGenerate-ProceduralTerrain->NoiseResolution,0,0),ProceduralTerrain->NoiseOutputScale);
+		FHitResult Out =LineTrace(StartLocation-FVector(ProceduralTerrain->TotalSizeToGenerate-ProceduralTerrain->NoiseResolution,0,0),ProceduralTerrain->FastNoiseOutputScale);
 		if(Out.IsValidBlockingHit())
 		{
 			AProceduralTerrainGen* Gen =Cast<AProceduralTerrainGen>(Out.Actor);
@@ -71,9 +84,10 @@ void AProceduralTerrainGen::FindConnections(AProceduralTerrainGen* CurrentTerrai
 			}
 		}
 	}
+	//If we dont have a west we look for one
 	if(!CurrentTerrain->WestTerrainGenerated)
 	{
-		FHitResult Out =LineTrace(StartLocation-FVector(0,ProceduralTerrain->TotalSizeToGenerate-ProceduralTerrain->NoiseResolution,0),ProceduralTerrain->NoiseOutputScale);
+		FHitResult Out =LineTrace(StartLocation-FVector(0,ProceduralTerrain->TotalSizeToGenerate-ProceduralTerrain->NoiseResolution,0),ProceduralTerrain->FastNoiseOutputScale);
 		if(Out.IsValidBlockingHit())
 		{
 			AProceduralTerrainGen* Gen =Cast<AProceduralTerrainGen>(Out.Actor);
@@ -92,13 +106,17 @@ void AProceduralTerrainGen::FindConnections(AProceduralTerrainGen* CurrentTerrai
  {
 	FHitResult OutHit;
 
+	//Make the start and end where the desired location is but with a negative z for the output scale
+	//and positive still we use the start location because if we generated the map at a location that is
+	//not 0,0,0 then we would not be able to reliably hit it with a line trace so we just take what the max height
+	//that the terrain could be and we subtract that from the z and we also add it to the z to keep our line trace relative
 	FVector Start = FVector(StartLocation.X,StartLocation.Y,StartLocation.Z-OutputScale);
 	FVector End =  FVector(StartLocation.X,StartLocation.Y,StartLocation.Z +OutputScale);
-	//GEngine->AddOnScreenDebugMessage(0,15,FColor::Green,Start.ToString());
-	//GEngine->AddOnScreenDebugMessage(1,15,FColor::Red,End.ToString());
+	
 
 	FCollisionQueryParams CollisionParams;
 
+	//Uncomment to get a debug trace for where we are doing the line traces
 	//DrawDebugLine(GetWorld(), Start, End, FColor::Green, false, 25, 0, 5);
 
 	GetWorld()->LineTraceSingleByChannel(OutHit, Start, End, ECC_Visibility, CollisionParams);
@@ -111,21 +129,15 @@ void AProceduralTerrainGen::GenerateCurrentLandscape() const
 	ProceduralTerrain->GenerateMap(NoiseComponentStartLocation);
 }
 
-void AProceduralTerrainGen::InitializeVariable(const FTerrainInfo TerrainInfo) const
+void AProceduralTerrainGen::InitializeVariable(const FTerrainInfo TerrainInfo, const FTerrainInfo ConnectionInfo) const
 {
-	ProceduralTerrain->NoiseResolution=TerrainInfo.NoiseResolution;
-	ProceduralTerrain->NoiseInputScale=TerrainInfo.NoiseInputScale;
-	ProceduralTerrain->NoiseOutputScale=TerrainInfo.NoiseOutputScale;
-	ProceduralTerrain->TotalSizeToGenerate=TerrainInfo.TotalSizeToGenerate;
-	ProceduralTerrain->NoiseType=TerrainInfo.NoiseType;
-	ProceduralTerrain->Seed=TerrainInfo.Seed;
-	ProceduralTerrain->Frequency=TerrainInfo.Frequency;
-	ProceduralTerrain->Interp=TerrainInfo.Interp;
-	ProceduralTerrain->FractalType=TerrainInfo.FractalType;
-	ProceduralTerrain->Octaves=TerrainInfo.Octaves;
-	ProceduralTerrain->Lacunarity=TerrainInfo.Lacunarity;
-	ProceduralTerrain->Gain=TerrainInfo.Gain;
-	ProceduralTerrain->CellularJitter=TerrainInfo.CellularJitter;
-	ProceduralTerrain->CellularDistanceFunction=TerrainInfo.CellularDistanceFunction;
-	ProceduralTerrain->CellularReturnType=TerrainInfo.CellularReturnType;
+	//Init the Fast Noise or the terrain map and the Connection noise until I get a better solution for the connection
+	ProceduralTerrain->InitializeFastNoise(TerrainInfo);
+	ProceduralTerrain->InitializeConnectionNoise(ConnectionInfo);
+
+	//Creating the trigger box the box extent is just the same size as the map generated. 
+	TerrainTriggerBox->SetBoxExtent(FVector((TerrainInfo.TotalSizeToGenerate-TerrainInfo.NoiseResolution)*0.5 ,(TerrainInfo.TotalSizeToGenerate-TerrainInfo.NoiseResolution)*0.5 ,TerrainInfo.NoiseOutputScale*2));
+
+	//And we need to make it so the box is in the center of the terrain so we off set it by half of the size of the map on x and y
+	TerrainTriggerBox->SetRelativeLocation(FVector((TerrainInfo.TotalSizeToGenerate)*0.5,(TerrainInfo.TotalSizeToGenerate)*0.5,0));
 }

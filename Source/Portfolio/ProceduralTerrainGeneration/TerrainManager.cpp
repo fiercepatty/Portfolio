@@ -17,7 +17,6 @@ void ATerrainManager::GeneratePlane()
 	{
 		AllTerrainOptions[I].NoiseResolution=NoiseResolution;
 		AllTerrainOptions[I].TotalSizeToGenerate=TotalSizeToGenerate;
-		AllTerrainOptions[I].Seed=Seed;
 	}
 	RemoveAllPlanes();
 	//Creating The Starting Point
@@ -120,6 +119,13 @@ void ATerrainManager::RemoveAllPlanes()
 }
 
 
+void ATerrainManager::BeginPlay()
+{
+	Super::BeginPlay();
+	//Just creating the world
+	GeneratePlane();
+}
+
 FVector ATerrainManager::UpdateNoiseSamplingLocation(const FVector StartLocation, const EDirection Dir) const
 {
 	//used to tell the noise wrapper where to start indexing in the actual noise map
@@ -191,7 +197,7 @@ AProceduralTerrainGen* ATerrainManager::SpawnTerrain(const FVector Location,FVec
 	TerrainGen->NoiseComponentStartLocation=UpdateNoiseSamplingLocation(SampleStart,Dir);
 
 	const int Num =FMath::RandRange(0,AllTerrainOptions.Num()-1);
-	TerrainGen->InitializeVariable(AllTerrainOptions[Num]);
+	TerrainGen->InitializeVariable(AllTerrainOptions[Num],TerrainConnectionOptions);
 	return TerrainGen;
 }
 
@@ -205,7 +211,7 @@ AProceduralTerrainGen* ATerrainManager::SpawnTerrain(FVector Location)
 	AProceduralTerrainGen* TerrainGen = GetWorld()->SpawnActor<AProceduralTerrainGen>(Location,GetActorRotation(),SpawnParams);
 
 	const int Num =FMath::RandRange(0,AllTerrainOptions.Num()-1);
-	TerrainGen->InitializeVariable(AllTerrainOptions[Num]);
+	TerrainGen->InitializeVariable(AllTerrainOptions[Num],TerrainConnectionOptions);
 	return TerrainGen;
 }
 

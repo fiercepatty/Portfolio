@@ -3,6 +3,8 @@
 
 #include "ProceduralTerrainGeneration/ProceduralTerrainComponent.h"
 
+#include "TerrainStructInfo.h"
+
 // Sets default values for this component's properties
 UProceduralTerrainComponent::UProceduralTerrainComponent()
 {
@@ -12,15 +14,33 @@ UProceduralTerrainComponent::UProceduralTerrainComponent()
 	ProceduralMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("GeneratedMesh"));
 	
 	FastNoise =CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("FastNoiseWrapper"));
+
+	ConnectionNoise =CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("ConnectionFastNoiseWrapper"));
 	// ...
+}
+
+void UProceduralTerrainComponent::InitializeFastNoise(const FTerrainInfo Terrain)
+{
+	FastNoise->SetupFastNoise(Terrain.NoiseType, Terrain.Seed, Terrain.Frequency, Terrain.Interp, Terrain.FractalType,
+				Terrain.Octaves,Terrain.Lacunarity,Terrain.Gain,Terrain.CellularJitter, Terrain.CellularDistanceFunction, Terrain.CellularReturnType);
+	NoiseResolution=Terrain.NoiseResolution;
+	TotalSizeToGenerate=Terrain.TotalSizeToGenerate;
+	NoiseInputScale=Terrain.NoiseInputScale;
+	FastNoiseOutputScale=Terrain.NoiseOutputScale;
+	
+}
+
+void UProceduralTerrainComponent::InitializeConnectionNoise(const FTerrainInfo Terrain) 
+{
+	ConnectionNoise->SetupFastNoise(Terrain.NoiseType, Terrain.Seed, Terrain.Frequency, Terrain.Interp, Terrain.FractalType,
+				Terrain.Octaves,Terrain.Lacunarity,Terrain.Gain,Terrain.CellularJitter, Terrain.CellularDistanceFunction, Terrain.CellularReturnType);
+	ConnectionNoiseOutputScale=Terrain.NoiseOutputScale;
 }
 
 void UProceduralTerrainComponent::GenerateMap(FVector StartLocation)
 {
 	ComponentLocation= StartLocation;
 	
-	FastNoise->SetupFastNoise(NoiseType, Seed, Frequency, Interp, FractalType,
-				Octaves,Lacunarity,Gain,CellularJitter, CellularDistanceFunction, CellularReturnType);
 
 	NoiseSamplesPerLine = TotalSizeToGenerate / NoiseResolution;
 	VerticesArraySize = NoiseSamplesPerLine * NoiseSamplesPerLine;
@@ -65,6 +85,7 @@ void UProceduralTerrainComponent::GenerateVertices()
 	Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
 	for (int y = 0; y < NoiseSamplesPerLine; y++) {
 		for (int x = 0; x < NoiseSamplesPerLine; x++) {
+			
 			const float NoiseResult = GetNoiseValueForGridCoordinates(x, y);
 			const int Index = GetIndexForGridCoordinates(x, y);
 			const FVector2D Position = GetPositionForGridCoordinates(x, y);
@@ -116,12 +137,9 @@ float UProceduralTerrainComponent::GetNoiseValueForGridCoordinates(const int X, 
 	{
 		return FastNoise->GetNoise3D(
 		(X+ ComponentLocation.X),(Y+ComponentLocation.Y),
-		0.0)* NoiseOutputScale;
+		0.0)* FastNoiseOutputScale;
 	}
-	else
-	{
-		return 0;
-	}
+	return 0;
 }
 
 int UProceduralTerrainComponent::GetIndexForGridCoordinates(const int X, const int Y) const

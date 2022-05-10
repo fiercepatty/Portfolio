@@ -6,6 +6,7 @@
 #include "ProceduralTerrainComponent.h"
 #include "GameFramework/Actor.h"
 #include "TerrainStructInfo.h"
+#include "Components/BoxComponent.h"
 #include "ProceduralTerrainGen.generated.h"
 
 
@@ -18,41 +19,65 @@ public:
 	// Sets default values for this actor's properties
 	AProceduralTerrainGen();
 
+	//Boolean for when the manager is destroying all of the planes we dont want it to try to destroy something twice so this is used to prevent it from adding something in the array twice
 	bool bGettingDestroyed=false;
-	
 
+	//Used to interact with the procedural player component to let the manager spawn in more map
+	UPROPERTY(VisibleAnywhere)
+	UBoxComponent* TerrainTriggerBox;
+
+	//This is what actually creates the mesh that is attached to it
 	UPROPERTY(VisibleAnywhere)
 	UProceduralTerrainComponent* ProceduralTerrain;
 
+	//Tell the Noise Wrapper where to start indexing into the mesh at
 	FVector NoiseComponentStartLocation;
 
-	
+	//Function to actually generate the terrain
 	void GenerateTerrain();
-	
+
+	//Helper function to create the terrain 
 	void GenerateCurrentLandscape() const;
 
 	/**
-	 * 
+	 * @param TerrainInfo - this is the Noise Parameter used to create the Mesh
+	 * @param ConnectionInfo - this is going to be the param that tell the mesh what to do on its borders
+	 * This function is used to setup all the fast noise wrapper settings that need to be set before we can generate the mesh
 	 */
-	void InitializeVariable(FTerrainInfo TerrainInfo) const;
+	void InitializeVariable(FTerrainInfo TerrainInfo, FTerrainInfo ConnectionInfo) const;
+
+	//This was done in a way like a linked list
 	
-	
+	/**The Connected Terrain in the East Direction*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings")
 	AProceduralTerrainGen* EastTerrainGenerated;
-	
+
+	/**The Connected Terrain in the West Direction*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings")
 	AProceduralTerrainGen* WestTerrainGenerated;
 
+	/**The Connected Terrain in the North Direction*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings")
 	AProceduralTerrainGen* NorthTerrainGenerated;
 
+	/**The Connected Terrain in the South Direction*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings")
 	AProceduralTerrainGen* SouthTerrainGenerated;
 
 private:
-	
+	//Helper function to do a line trace at a location
+	/**
+	 * @param StartLocation The Place to do the straight up and done line trace to try and find a terrain
+	 * @param OutputScale How long the line trace is
+	 * Line trace is a straight up and down line just used to find if there is a terrain that could be attached to this actor
+	 */
 	FHitResult LineTrace(FVector StartLocation, float OutputScale) const;
 
+	/**
+	 * Finds all the Connections that are available for the terrain passed in
+	 * It will also establish the connection for the other terrain if it find that they are connected so that other terrain does not need to do this as well, we are only doing this once
+	 * Uses the helper function line trace to complete this task
+	 */
 	void FindConnections(AProceduralTerrainGen* CurrentTerrain) const;
 	
 
