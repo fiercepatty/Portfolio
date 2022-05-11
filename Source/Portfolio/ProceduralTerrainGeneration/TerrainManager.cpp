@@ -3,21 +3,59 @@
 
 #include "ProceduralTerrainGeneration/TerrainManager.h"
 
+
 // Sets default values
 ATerrainManager::ATerrainManager()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
+	BiomeNoise=CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("Noise"));
+	
+}
 
+void ATerrainManager::InitBiomeNoise() const
+{
+	BiomeNoise->SetupFastNoise(BiomeOptions.NoiseType, BiomeOptions.Seed, BiomeOptions.Frequency, BiomeOptions.Interp, BiomeOptions.FractalType,
+				BiomeOptions.Octaves,BiomeOptions.Lacunarity,BiomeOptions.Gain,BiomeOptions.CellularJitter, BiomeOptions.CellularDistanceFunction, BiomeOptions.CellularReturnType);
+}
+
+int ATerrainManager::SelectedBiome(const FVector BiomeLocation) const
+{
+	//If we only have one option just return it
+	if(AllTerrainOptions.Num() ==1)
+		return 0;
+	else
+	{
+		//Get the Noise Value for the Biome Location We need to add 1 to it because it is between -1, 1 so we make it between 0 and 2 and then we multiple by 0.5 because multiplication is faster than division
+		float Noise = BiomeNoise->GetNoise2D(BiomeLocation.X,BiomeLocation.Y);
+		Noise +=1;
+		Noise = Noise * 0.5;
+
+		//Here we have to divide because we have no way of know how many terrain options there will be. This will be how we separate when to use a certain terrain option over another
+		//Basically if we have 3 options the range of 0-0.33 with give us index of 0 and then .34-.66 will give us index of 1 and .67 to 1 will give us index 2 allowing there to be a random chance but controlled change with seed picked by the user
+		//And because we are using noise the noise tends to stay around the same values and has small increments so we could have a much more likely chance of having similar terrain options around the same terrain option
+		const float Increment = 1.0 / AllTerrainOptions.Num();
+		const int Value = Noise / Increment;
+		int Index = AllTerrainOptions.Num()-1;
+		Index -= Value;
+
+		return Index;
+	}
 }
 
 void ATerrainManager::GeneratePlane()
 {
+	InitBiomeNoise();
 	for (int I=0;I<AllTerrainOptions.Num();I++)
 	{
 		AllTerrainOptions[I].NoiseResolution=NoiseResolution;
 		AllTerrainOptions[I].TotalSizeToGenerate=TotalSizeToGenerate;
+		AllTerrainOptions[I].bAverageTerrainConnections=bAverageConnection;
 	}
+	//Telling the water how much to generate
+	WaterOptions.TotalSizeToGenerate=TotalSizeToGenerate;
+	
+	
 	RemoveAllPlanes();
 	//Creating The Starting Point
 	Origin = SpawnTerrain(GetActorLocation());
@@ -195,9 +233,17 @@ AProceduralTerrainGen* ATerrainManager::SpawnTerrain(const FVector Location,FVec
 	//Spawn the terrain and update where we are sampling the noise from and initialize any variables needed
 	AProceduralTerrainGen* TerrainGen = GetWorld()->SpawnActor<AProceduralTerrainGen>(SpawnLocation,GetActorRotation(),SpawnParams);
 	TerrainGen->NoiseComponentStartLocation=UpdateNoiseSamplingLocation(SampleStart,Dir);
+	const int Num =	SelectedBiome(TerrainGen->NoiseComponentStartLocation);
+	const TArray<FTerrainInfo> Connections = FindConnectedTerrains(TerrainGen);
 
-	const int Num =FMath::RandRange(0,AllTerrainOptions.Num()-1);
-	TerrainGen->InitializeVariable(AllTerrainOptions[Num],TerrainConnectionOptions);
+	if(WaterOptions.WaterHeight >= 0)
+	{
+		TerrainGen->InitializeVariable(AllTerrainOptions[Num],Connections,WaterOptions);
+	}
+	else
+	{
+		TerrainGen->InitializeVariable(AllTerrainOptions[Num],Connections);
+	}
 	return TerrainGen;
 }
 
@@ -209,11 +255,44 @@ AProceduralTerrainGen* ATerrainManager::SpawnTerrain(FVector Location)
 	SpawnParams.Instigator = GetInstigator();
 	
 	AProceduralTerrainGen* TerrainGen = GetWorld()->SpawnActor<AProceduralTerrainGen>(Location,GetActorRotation(),SpawnParams);
+	const int Num =	SelectedBiome(TerrainGen->NoiseComponentStartLocation);
+	const TArray<FTerrainInfo> Connections = FindConnectedTerrains(TerrainGen);
 
-	const int Num =FMath::RandRange(0,AllTerrainOptions.Num()-1);
-	TerrainGen->InitializeVariable(AllTerrainOptions[Num],TerrainConnectionOptions);
+	if(WaterOptions.WaterHeight >= 0)
+	{
+		TerrainGen->InitializeVariable(AllTerrainOptions[Num],Connections,WaterOptions);
+	}
+	else
+	{
+		TerrainGen->InitializeVariable(AllTerrainOptions[Num],Connections);
+	}
 	return TerrainGen;
 }
+TArray<FTerrainInfo> ATerrainManager::FindConnectedTerrains(const AProceduralTerrainGen* CurrentTerrain)
+{
+	TArray<FTerrainInfo> TerrainInfos;
+	const int NoiseSamplesPerLine = TotalSizeToGenerate / NoiseResolution;
+	const FVector CurrentLocation = CurrentTerrain->NoiseComponentStartLocation;
+	//North
+	TerrainInfos.Add(AllTerrainOptions[SelectedBiome(CurrentLocation+FVector(NoiseSamplesPerLine-1,0,0))]);
+	//NorthEast
+	TerrainInfos.Add(AllTerrainOptions[SelectedBiome((CurrentLocation+FVector(NoiseSamplesPerLine-1,NoiseSamplesPerLine-1,0)))]);
+	//East
+	TerrainInfos.Add(AllTerrainOptions[SelectedBiome(CurrentLocation+FVector(0,NoiseSamplesPerLine-1,0))]);
+	//SouthEast
+	TerrainInfos.Add(AllTerrainOptions[SelectedBiome((CurrentLocation+FVector(-(NoiseSamplesPerLine-1),NoiseSamplesPerLine-1,0)))]);
+	//South
+	TerrainInfos.Add(AllTerrainOptions[SelectedBiome(CurrentLocation+FVector(-(NoiseSamplesPerLine-1),0,0))]);
+	//SouthWest
+	TerrainInfos.Add(AllTerrainOptions[SelectedBiome(CurrentLocation+FVector(-(NoiseSamplesPerLine-1),-(NoiseSamplesPerLine-1),0))]);
+	//West
+	TerrainInfos.Add(AllTerrainOptions[SelectedBiome(CurrentLocation+FVector(0,-(NoiseSamplesPerLine-1),0))]);
+	//NorthWest
+	TerrainInfos.Add(AllTerrainOptions[SelectedBiome(CurrentLocation+FVector(NoiseSamplesPerLine-1,-(NoiseSamplesPerLine-1),0))]);
+	
+	return TerrainInfos;
+}
+
 
 void ATerrainManager::GenerateSquareLayer()
 {
@@ -305,7 +384,7 @@ void ATerrainManager::MoveSquareNorth()
 		if(Current->NorthTerrainGenerated)
 		{
 			North[Index] = Current->NorthTerrainGenerated;
-			Current->NorthTerrainGenerated->ProceduralTerrain->LoadMesh();
+			Current->NorthTerrainGenerated->LoadTerrain();
 		}
 		else
 		{
@@ -323,7 +402,7 @@ void ATerrainManager::MoveSquareNorth()
 		if(Current->NorthTerrainGenerated)
 		{
 			East[Index] = Current->NorthTerrainGenerated;
-			Current->NorthTerrainGenerated->ProceduralTerrain->LoadMesh();
+			Current->NorthTerrainGenerated->LoadTerrain();
 		}
 	}
 	
@@ -333,7 +412,7 @@ void ATerrainManager::MoveSquareNorth()
 		if(Current->NorthTerrainGenerated)
 		{
 			West[Index] = Current->NorthTerrainGenerated;
-			Current->NorthTerrainGenerated->ProceduralTerrain->LoadMesh();
+			Current->NorthTerrainGenerated->LoadTerrain();
 		}
 	}
 
@@ -344,7 +423,7 @@ void ATerrainManager::MoveSquareNorth()
 		if(Current->NorthTerrainGenerated)
 		{
 			South[Index] = Current->NorthTerrainGenerated;
-			Current->NorthTerrainGenerated->ProceduralTerrain->LoadMesh();
+			Current->NorthTerrainGenerated->LoadTerrain();
 		}
 		else
 		{
@@ -353,7 +432,7 @@ void ATerrainManager::MoveSquareNorth()
 			Current->NorthTerrainGenerated->GenerateTerrain();
 			South[Index] = Current->NorthTerrainGenerated;
 		}
-		Current->ProceduralTerrain->UnLoadMesh();
+		Current->UnloadTerrain();
 	}
 	
 }
@@ -367,7 +446,7 @@ void ATerrainManager::MoveSquareEast()
 		if(Current->EastTerrainGenerated)
 		{
 			East[Index] = Current->EastTerrainGenerated;
-			Current->EastTerrainGenerated->ProceduralTerrain->LoadMesh();
+			Current->EastTerrainGenerated->LoadTerrain();
 		}
 		else
 		{
@@ -385,7 +464,7 @@ void ATerrainManager::MoveSquareEast()
 		if(Current->EastTerrainGenerated)
 		{
 			North[Index] = Current->EastTerrainGenerated;
-			Current->EastTerrainGenerated->ProceduralTerrain->LoadMesh();
+			Current->EastTerrainGenerated->LoadTerrain();
 		}
 	}
 
@@ -395,7 +474,7 @@ void ATerrainManager::MoveSquareEast()
 		if(Current->EastTerrainGenerated)
 		{
 			South[Index] = Current->EastTerrainGenerated;
-			Current->EastTerrainGenerated->ProceduralTerrain->LoadMesh();
+			Current->EastTerrainGenerated->LoadTerrain();
 		}
 	}
 
@@ -406,7 +485,7 @@ void ATerrainManager::MoveSquareEast()
 		if(Current->EastTerrainGenerated)
 		{
 			West[Index] = Current->EastTerrainGenerated;
-			Current->EastTerrainGenerated->ProceduralTerrain->LoadMesh();
+			Current->EastTerrainGenerated->LoadTerrain();
 		}
 		else
 		{
@@ -415,7 +494,7 @@ void ATerrainManager::MoveSquareEast()
 			Current->EastTerrainGenerated->GenerateTerrain();
 			West[Index] = Current->EastTerrainGenerated;
 		}
-		Current->ProceduralTerrain->UnLoadMesh();
+		Current->UnloadTerrain();
 	}
 }
 
@@ -428,7 +507,7 @@ void ATerrainManager::MoveSquareSouth()
 		if(Current->SouthTerrainGenerated)
 		{
 			South[Index] = Current->SouthTerrainGenerated;
-			Current->SouthTerrainGenerated->ProceduralTerrain->LoadMesh();
+			Current->SouthTerrainGenerated->LoadTerrain();
 		}
 		else
 		{
@@ -445,7 +524,7 @@ void ATerrainManager::MoveSquareSouth()
 		if(Current->SouthTerrainGenerated)
 		{
 			East[Index] = Current->SouthTerrainGenerated;
-			Current->SouthTerrainGenerated->ProceduralTerrain->LoadMesh();
+			Current->SouthTerrainGenerated->LoadTerrain();
 		}
 	}
 	
@@ -455,7 +534,7 @@ void ATerrainManager::MoveSquareSouth()
 		if(Current->SouthTerrainGenerated)
 		{
 			West[Index] = Current->SouthTerrainGenerated;
-			Current->SouthTerrainGenerated->ProceduralTerrain->LoadMesh();
+			Current->SouthTerrainGenerated->LoadTerrain();
 		}
 	}
 
@@ -465,7 +544,7 @@ void ATerrainManager::MoveSquareSouth()
 		if(Current->SouthTerrainGenerated)
 		{
 			North[Index] = Current->SouthTerrainGenerated;
-			Current->SouthTerrainGenerated->ProceduralTerrain->LoadMesh();
+			Current->SouthTerrainGenerated->LoadTerrain();
 		}
 		else
 		{
@@ -474,7 +553,7 @@ void ATerrainManager::MoveSquareSouth()
 			Current->SouthTerrainGenerated->GenerateTerrain();
 			North[Index] = Current->SouthTerrainGenerated;
 		}
-		Current->ProceduralTerrain->UnLoadMesh();
+		Current->UnloadTerrain();
 	}
 }
 
@@ -488,7 +567,7 @@ void ATerrainManager::MoveSquareWest()
 		if(Current->WestTerrainGenerated)
 		{
 			West[Index] = Current->WestTerrainGenerated;
-			Current->WestTerrainGenerated->ProceduralTerrain->LoadMesh();
+			Current->WestTerrainGenerated->LoadTerrain();
 		}
 		else
 		{
@@ -505,7 +584,7 @@ void ATerrainManager::MoveSquareWest()
 		if(Current->WestTerrainGenerated)
 		{
 			North[Index] = Current->WestTerrainGenerated;
-			Current->WestTerrainGenerated->ProceduralTerrain->LoadMesh();
+			Current->WestTerrainGenerated->LoadTerrain();
 		}
 	}
 
@@ -515,7 +594,7 @@ void ATerrainManager::MoveSquareWest()
 		if(Current->WestTerrainGenerated)
 		{
 			South[Index] = Current->WestTerrainGenerated;
-			Current->WestTerrainGenerated->ProceduralTerrain->LoadMesh();
+			Current->WestTerrainGenerated->LoadTerrain();
 		}
 	}
 
@@ -525,7 +604,7 @@ void ATerrainManager::MoveSquareWest()
 		if(Current->WestTerrainGenerated)
 		{
 			East[Index] = Current->WestTerrainGenerated;
-			Current->WestTerrainGenerated->ProceduralTerrain->LoadMesh();
+			Current->WestTerrainGenerated->LoadTerrain();
 		}
 		else
 		{
@@ -534,7 +613,7 @@ void ATerrainManager::MoveSquareWest()
 			Current->WestTerrainGenerated->GenerateTerrain();
 			East[Index] = Current->WestTerrainGenerated;
 		}
-		Current->ProceduralTerrain->UnLoadMesh();
+		Current->UnloadTerrain();
 	}
 }
 

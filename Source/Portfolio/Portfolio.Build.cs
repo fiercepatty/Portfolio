@@ -10,7 +10,9 @@ public class Portfolio : ModuleRules
 
 		PrivateIncludePaths.AddRange(new string[] {
 			"Portfolio/",
-			"Portfolio/ProceduralTerrainGeneration"
+			"Portfolio/ProceduralTerrainGeneration",
+			"Portfolio/ProceduralTerrainGeneration/WaterGeneration",
+			"Portfolio/ProceduralTerrainGeneration/TerrainGeneration"
 			
 		});
 		
