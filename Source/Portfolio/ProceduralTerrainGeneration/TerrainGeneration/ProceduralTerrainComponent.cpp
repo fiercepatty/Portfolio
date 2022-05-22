@@ -50,6 +50,7 @@ void UProceduralTerrainComponent::InitializeFastNoise(const FTerrainInfo Terrain
 	TotalSizeToGenerate=Terrain.TotalSizeToGenerate;
 	NoiseInputScale=Terrain.NoiseInputScale;
 	FastNoiseOutputScale=Terrain.NoiseOutputScale;
+	Mat=Terrain.TerrainMaterial;
 	bAverage=Terrain.bAverageTerrainConnections;
 	
 }
@@ -301,6 +302,8 @@ void UProceduralTerrainComponent::GenerateTriangles()
 void UProceduralTerrainComponent::GenerateMesh() const
 {
 	ProceduralTerrainMesh->CreateMeshSection(0,Vertices,Triangles,Normals,UV,VertexColors,Tangents,true);
+	if(Mat)
+		ProceduralTerrainMesh->SetMaterial(0,Mat);
 	
 }
 

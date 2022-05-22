@@ -90,4 +90,6 @@ private:
 	//Colors for the actual vertexes
 	TArray<FColor> VertexColors;
 
+	UMaterialInstance* Mat=nullptr;
+
 };

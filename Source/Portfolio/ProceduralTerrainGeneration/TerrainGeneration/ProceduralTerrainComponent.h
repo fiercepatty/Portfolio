@@ -114,6 +114,7 @@ private:
 	static FMeshDescription BuildANewMeshDescription(UProceduralMeshComponent* ProcMeshComp );
 
 
+	UMaterialInstance* Mat=nullptr;
 
 	//Internal Function used to generate all the vertices of the Terrain and the UVs for the mesh
 	void GenerateVertices();

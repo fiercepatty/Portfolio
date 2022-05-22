@@ -42,6 +42,7 @@ void UProceduralWaterComponent::InitializeWaterComponent(const FWaterInfo Water)
 	TotalSizeToGenerate=Water.TotalSizeToGenerate;
 	WaterHeight=Water.WaterHeight;
 	OutputScale=Water.NoiseOutputScale;
+	Mat=Water.WaterMaterial;
 }
 
 void UProceduralWaterComponent::UnLoadMesh() const
@@ -105,6 +106,8 @@ void UProceduralWaterComponent::GenerateTriangles()
 void UProceduralWaterComponent::GenerateMesh() const
 {
 	ProceduralWaterMesh->CreateMeshSection(0,Vertices,Triangles,Normals,UV,VertexColors,Tangents,true);
+	if(Mat)
+		ProceduralWaterMesh->SetMaterial(0,Mat);
 }
 
 int UProceduralWaterComponent::GetIndexForGridCoordinates(int X, int Y) const

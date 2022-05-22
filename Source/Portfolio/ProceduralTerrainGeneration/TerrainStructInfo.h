@@ -111,6 +111,7 @@ struct FTerrainInfo
 	}
 
 public:
+	
 	//Do we want to average our connections or not
 	bool bAverageTerrainConnections=true;
 
@@ -122,6 +123,12 @@ public:
 
 	//Not used currently, would be used to allow for terrains to index closer around the same location so that noise values do not change as often
 	float NoiseInputScale = 0.5;
+
+	/**
+	 * Material used for the terrain
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Noise Settings")
+	UMaterialInstance* TerrainMaterial=nullptr;
 
 	/**How tall the highest point and smallest point will be from one another*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Noise Settings")
@@ -218,6 +225,12 @@ public:
 
 	/**How tall the highest point and smallest point will be from one another*/
 	float NoiseOutputScale = 2000;
+
+	/**
+	 * Material used for the water
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Noise Settings")
+	UMaterialInstance* WaterMaterial=nullptr;
 
 
 	
