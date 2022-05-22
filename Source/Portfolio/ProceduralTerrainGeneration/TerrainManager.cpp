@@ -1,7 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
-#include "ProceduralTerrainGeneration/TerrainManager.h"
+#include "TerrainManager.h"
 
 
 // Sets default values
@@ -45,7 +45,10 @@ int ATerrainManager::SelectedBiome(const FVector BiomeLocation) const
 
 void ATerrainManager::GeneratePlane()
 {
+	//Setup the biome noise so we can determine what terrain we have
 	InitBiomeNoise();
+
+	//Setting up parameters in the terrain noise that needs to be the same for all terrains
 	for (int I=0;I<AllTerrainOptions.Num();I++)
 	{
 		AllTerrainOptions[I].NoiseResolution=NoiseResolution;
@@ -55,7 +58,7 @@ void ATerrainManager::GeneratePlane()
 	//Telling the water how much to generate
 	WaterOptions.TotalSizeToGenerate=TotalSizeToGenerate;
 	
-	
+	//Get rid of any planes we have at the moment
 	RemoveAllPlanes();
 	//Creating The Starting Point
 	Origin = SpawnTerrain(GetActorLocation());
@@ -85,8 +88,10 @@ void ATerrainManager::GeneratePlane()
 	Origin->WestTerrainGenerated->GenerateTerrain();
 	West.Add(Origin->WestTerrainGenerated);
 
+	//Create the corners on the square, So the NorthEast,NorthWest,SouthEast,SouthWest edges of the square
 	GenerateSquareCorners();
 
+	//Generate however many square layers needed for the terrain based off of the visible range
 	for(int I=1;I<VisibleRange;I++)
 	{
 		GenerateSquareLayer();
@@ -157,6 +162,7 @@ void ATerrainManager::RemoveAllPlanes()
 }
 
 
+
 void ATerrainManager::BeginPlay()
 {
 	Super::BeginPlay();
@@ -199,7 +205,7 @@ FVector ATerrainManager::UpdateNoiseSamplingLocation(const FVector StartLocation
 
 AProceduralTerrainGen* ATerrainManager::SpawnTerrain(const FVector Location,FVector SampleStart, const EDirection Dir)
 {
-	//Move the spawn of the terrain by the direction we are wanting to spawn it in. The terrain are TotalSize-NoiseResolution big so we are add or subtracting that on the correct axis
+	//Move the spawn of the terrain by the direction we are wanting to spawn it in. The terrain are TotalSize-NoiseResolution big so add or subtracting that on the correct axis
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = this;
 	SpawnParams.Instigator = GetInstigator();
@@ -249,7 +255,7 @@ AProceduralTerrainGen* ATerrainManager::SpawnTerrain(const FVector Location,FVec
 
 AProceduralTerrainGen* ATerrainManager::SpawnTerrain(FVector Location)
 {
-	//This is basically only for the origin map because it does not need to be offset at all when it was created
+	//This is only for the origin map because it does not need to be offset at all when it was created
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.Owner = this;
 	SpawnParams.Instigator = GetInstigator();
@@ -329,7 +335,7 @@ void ATerrainManager::GenerateSquareLayer()
 		Current->WestTerrainGenerated->GenerateTerrain();
 		West[Index] = Current->WestTerrainGenerated;
 	}
-	//Wee go clockwise around the square and get the corner that need to be generated and the arrays are in order so we made sure to keep them in order
+	//We go clockwise around the square and get the corner that need to be generated and the arrays are in order so we made sure to keep them in order
 	GenerateSquareCorners();
 	
 }
@@ -432,7 +438,34 @@ void ATerrainManager::MoveSquareNorth()
 			Current->NorthTerrainGenerated->GenerateTerrain();
 			South[Index] = Current->NorthTerrainGenerated;
 		}
-		Current->UnloadTerrain();
+		if(bDestroyOnHide)
+		{
+			if(Current->NorthTerrainGenerated)
+			{
+				Current->NorthTerrainGenerated->SouthTerrainGenerated=nullptr;
+				Current->NorthTerrainGenerated=nullptr;
+			}
+			if(Current->EastTerrainGenerated)
+			{
+				Current->EastTerrainGenerated->WestTerrainGenerated=nullptr;
+				Current->EastTerrainGenerated=nullptr;
+			}
+			if(Current->WestTerrainGenerated)
+			{
+				Current->WestTerrainGenerated->EastTerrainGenerated=nullptr;
+				Current->WestTerrainGenerated=nullptr;
+			}
+			if(Current->SouthTerrainGenerated)
+			{
+				Current->SouthTerrainGenerated->NorthTerrainGenerated=nullptr;
+				Current->SouthTerrainGenerated=nullptr;
+			}
+			Current->Destroy();
+		}
+		else
+		{
+			Current->UnloadTerrain();
+		}
 	}
 	
 }
@@ -494,7 +527,34 @@ void ATerrainManager::MoveSquareEast()
 			Current->EastTerrainGenerated->GenerateTerrain();
 			West[Index] = Current->EastTerrainGenerated;
 		}
-		Current->UnloadTerrain();
+		if(bDestroyOnHide)
+		{
+			if(Current->NorthTerrainGenerated)
+			{
+				Current->NorthTerrainGenerated->SouthTerrainGenerated=nullptr;
+				Current->NorthTerrainGenerated=nullptr;
+			}
+			if(Current->EastTerrainGenerated)
+			{
+				Current->EastTerrainGenerated->WestTerrainGenerated=nullptr;
+				Current->EastTerrainGenerated=nullptr;
+			}
+			if(Current->WestTerrainGenerated)
+			{
+				Current->WestTerrainGenerated->EastTerrainGenerated=nullptr;
+				Current->WestTerrainGenerated=nullptr;
+			}
+			if(Current->SouthTerrainGenerated)
+			{
+				Current->SouthTerrainGenerated->NorthTerrainGenerated=nullptr;
+				Current->SouthTerrainGenerated=nullptr;
+			}
+			Current->Destroy();
+		}
+		else
+		{
+			Current->UnloadTerrain();
+		}
 	}
 }
 
@@ -553,7 +613,34 @@ void ATerrainManager::MoveSquareSouth()
 			Current->SouthTerrainGenerated->GenerateTerrain();
 			North[Index] = Current->SouthTerrainGenerated;
 		}
-		Current->UnloadTerrain();
+		if(bDestroyOnHide)
+		{
+			if(Current->NorthTerrainGenerated)
+			{
+				Current->NorthTerrainGenerated->SouthTerrainGenerated=nullptr;
+				Current->NorthTerrainGenerated=nullptr;
+			}
+			if(Current->EastTerrainGenerated)
+			{
+				Current->EastTerrainGenerated->WestTerrainGenerated=nullptr;
+				Current->EastTerrainGenerated=nullptr;
+			}
+			if(Current->WestTerrainGenerated)
+			{
+				Current->WestTerrainGenerated->EastTerrainGenerated=nullptr;
+				Current->WestTerrainGenerated=nullptr;
+			}
+			if(Current->SouthTerrainGenerated)
+			{
+				Current->SouthTerrainGenerated->NorthTerrainGenerated=nullptr;
+				Current->SouthTerrainGenerated=nullptr;
+			}
+			Current->Destroy();
+		}
+		else
+		{
+			Current->UnloadTerrain();
+		}
 	}
 }
 
@@ -613,7 +700,34 @@ void ATerrainManager::MoveSquareWest()
 			Current->WestTerrainGenerated->GenerateTerrain();
 			East[Index] = Current->WestTerrainGenerated;
 		}
-		Current->UnloadTerrain();
+		if(bDestroyOnHide)
+		{
+			if(Current->NorthTerrainGenerated)
+			{
+				Current->NorthTerrainGenerated->SouthTerrainGenerated=nullptr;
+				Current->NorthTerrainGenerated=nullptr;
+			}
+			if(Current->EastTerrainGenerated)
+			{
+				Current->EastTerrainGenerated->WestTerrainGenerated=nullptr;
+				Current->EastTerrainGenerated=nullptr;
+			}
+			if(Current->WestTerrainGenerated)
+			{
+				Current->WestTerrainGenerated->EastTerrainGenerated=nullptr;
+				Current->WestTerrainGenerated=nullptr;
+			}
+			if(Current->SouthTerrainGenerated)
+			{
+				Current->SouthTerrainGenerated->NorthTerrainGenerated=nullptr;
+				Current->SouthTerrainGenerated=nullptr;
+			}
+			Current->Destroy();
+		}
+		else
+		{
+			Current->UnloadTerrain();
+		}
 	}
 }
 

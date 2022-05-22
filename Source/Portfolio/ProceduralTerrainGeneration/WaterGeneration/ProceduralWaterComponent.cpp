@@ -10,17 +10,21 @@ UProceduralWaterComponent::UProceduralWaterComponent()
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = false;
 
+	//Procedural Mesh
 	ProceduralWaterMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("ProceduralWaterMesh"));
 	// ...
 }
 
 void UProceduralWaterComponent::GenerateMap(const FVector StartingLocation)
 {
+	//Start location for map to generate around
 	ComponentLocation= StartingLocation;
 	
-
+	//How many points are in each line and how many lines there are to make the square
 	NoiseSamplesPerLine = TotalSizeToGenerate / NoiseResolution;
+	//How many vertices there are 
 	VerticesArraySize = NoiseSamplesPerLine * NoiseSamplesPerLine;
+	//Creating all the normals for the terrain
 	Normals.Init(FVector(0, 0, 1), VerticesArraySize);
 	//Tangents.Init(FRuntimeMeshTangent(0, -1, 0), VerticesArraySize);
 	UV.Init(FVector2D(0, 0), VerticesArraySize);
@@ -33,6 +37,7 @@ void UProceduralWaterComponent::GenerateMap(const FVector StartingLocation)
 
 void UProceduralWaterComponent::InitializeWaterComponent(const FWaterInfo Water)
 {
+	//Save off the variables we need for calculations so we dont have to use getter in the fast noise to get access to these variables
 	NoiseResolution=Water.NoiseResolution;
 	TotalSizeToGenerate=Water.TotalSizeToGenerate;
 	WaterHeight=Water.WaterHeight;
@@ -54,9 +59,10 @@ void UProceduralWaterComponent::LoadMesh() const
 void UProceduralWaterComponent::GenerateVertices()
 {
 	Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
+	//Loop through each vertices and set the position the vertices is located at scaled to the actual mesh
 	for (int y = 0; y < NoiseSamplesPerLine; y++) {
 		for (int x = 0; x < NoiseSamplesPerLine; x++) {
-			
+			//Noise Result is just the water height dont do any calculation
 			const float NoiseResult = WaterHeight-OutputScale;
 			const int Index = GetIndexForGridCoordinates(x, y);
 			const FVector2D Position = GetPositionForGridCoordinates(x, y);

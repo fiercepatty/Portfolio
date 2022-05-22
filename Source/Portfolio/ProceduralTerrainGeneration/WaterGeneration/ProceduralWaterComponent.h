@@ -30,18 +30,6 @@ public:
 	/**The way we turn the mesh and collision back on after we turned it off*/
 	void LoadMesh() const;
 
-	//Todo Explain
-	int NoiseResolution = 300;
-
-	//Todo Explain
-	int TotalSizeToGenerate = 1200;
-
-	//Todo Explain
-	int NoiseSamplesPerLine = TotalSizeToGenerate / NoiseResolution;
-
-	//Todo Explain
-	int VerticesArraySize = NoiseSamplesPerLine * NoiseSamplesPerLine;
-
 	//The Height that the water will be at. The highest the terrain can be is 2x the NoiseOutputScale so we subtract this height from NoiseOutputScale to get the actual location for height
 	int WaterHeight=300;
 
@@ -53,43 +41,53 @@ public:
 	UProceduralMeshComponent* ProceduralWaterMesh;
 	
 private:
-	//Todo Explain
+	//This is where the Noise starts indexing in the Noise Texture. This is the starting point to index in our texture. 
 	FVector ComponentLocation;
 	
-	//Todo Explain
+	//All the vertices of the mesh
 	TArray<FVector> Vertices;
 
-	//Todo Explain
+	//All the triangles of the mesh
 	TArray<int> Triangles;
 
-	
+	//Saved off value for the Noise Resolution for calculations
+	int NoiseResolution = 300;
 
-	//Todo Explain
+	//Saved off value for the total size to generate for calculations
+	int TotalSizeToGenerate = 1200;
+
+	//Saved off Samples per line for calculations
+	int NoiseSamplesPerLine = TotalSizeToGenerate / NoiseResolution;
+
+	//Saved off size for calculations
+	int VerticesArraySize = NoiseSamplesPerLine * NoiseSamplesPerLine;
+
+	//Internal Function used to generate all the vertices of the mesh and the UVs for the mesh
 	void GenerateVertices();
 
-	//Todo Explain
+	//Internal function for generating all the triangles giving the procedural mesh a way of knowing what vertices indexes are in reference to what triangles
 	void GenerateTriangles();
 
-	//Todo Explain
+	//Internal function that just passes in the parameter needed to generate the mesh for the procedural mesh
 	void GenerateMesh() const;
 
-	//Todo Explain
+	//Internal Function that is used to tell what noise value is represented at every location.
 	int GetIndexForGridCoordinates(int X, int Y) const;
 
-	//Todo Explain
+	//Used to get the index for a specific coordinate in the array of vertices
 	FVector2D GetPositionForGridCoordinates(int X, int Y) const;
 
 	// Other things needed to generate the mesh
-	//Todo Explain
+	//Array of all the Normals for the Vertices
 	TArray<FVector> Normals;
 
-	//Todo Explain
+	//Array of all the tangents for the vertices
 	TArray<FProcMeshTangent> Tangents;
 
-	//Todo Explain
+	//Array of all the UV for the terrain
 	TArray<FVector2D> UV;
 
-	//Todo Explain
+	//Colors for the actual vertexes
 	TArray<FColor> VertexColors;
 
 };

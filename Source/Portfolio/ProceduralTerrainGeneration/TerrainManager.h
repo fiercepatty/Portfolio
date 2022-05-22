@@ -7,6 +7,7 @@
 #include "GameFramework/Actor.h"
 #include "TerrainStructInfo.h"
 #include "TerrainManager.generated.h"
+/**Direction needed to be moved to get to another terrain location*/
 UENUM(BlueprintType)
 enum class EDirection: uint8
 {
@@ -73,10 +74,8 @@ private:
 	
 	/**Need at least one of these to generate terrain
 	 * If you have more than one when it is creating terrain it will pick one of these values randomly when creating the terrain
-	 * On the edge of two terrain locations it will use the TerrainConnectionOptions values which will allow for terrain to be connected to one another
-	 * When pick the noise value from the options it has a higher chance of keeping the noise value of the neighbor that told it to create itself
-	 * So if its south neighbor is what told it to create itself there will be a higher chance to use that neighbors noise options
-	 * Percent Chance will be controlled by ChanceToContinueTerrain- Between 0 and 1, 0 meaning randomly choose another terrain option and 1 being always take neighbors terrain option
+	 * This is all the parameters for the Noise for generating the map.
+	 * If there are more than one of these it will average the noise value of connected terrain to generate the map
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Noise" ,meta = (AllowPrivateAccess=true))
 	TArray<FTerrainInfo> AllTerrainOptions;
@@ -92,12 +91,12 @@ private:
 	/**
 	 * The edges of a biome do we average our connections or do we pick whichever one is closest to the origin
 	 * Averaging will allow us to look at the connected corners and average whatever that connected terrain into our terrain so that the edges match up
-	 * Picking which one is closest will allow the terrain to look at whichever terrain has a closer NoiseSampling Vector to zero and that one will win out
+	 * NOT IMPLEMENTED Picking which one is closest will allow the terrain to look at whichever terrain has a closer NoiseSampling Vector to zero and that one will win out
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Biome",meta = (AllowPrivateAccess=true))
 	bool bAverageConnection = true;
 
-	//The Wrapper that holds all the fast noise info
+	//The Wrapper that holds all the fast noise info for the biome
 	UPROPERTY()
 	UFastNoiseWrapper* BiomeNoise;
 
@@ -106,7 +105,7 @@ private:
 
 	/**
 	 * @returns the Index in the AllTerrainOptions that the selected Terrain will have
-	 * @param BiomeLocation This is just hte NoiseComponentLocation that will allow it to easily keep track of the individual terrain without making a new variable
+	 * @param BiomeLocation This is just the NoiseComponentLocation that will allow it to easily keep track of the individual terrain without making a new variable
 	 * If there is only one terrain in All Terrain Option it just return index of 0 else it will do the noise calculation then clamp its result between 0 and 1 and
 	 * then it will give each terrain option a interval that that terrain will be selected so if we have 2 terrain options 0-0.49 will be option 1 and .5 to 1 will be option 2
 	 */
@@ -122,8 +121,8 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Settings",meta = (ClampMin=1,AllowPrivateAccess=true))
 	float TotalSizeToGenerate=1200;
 
-	/**Divide this by the total size to generate and that will give you how many vertices going across the square there will be. So basically divide this by the total size to generate and the square it and that
-	 *is how many verts are in your mesh. But remember there are multiple of these meshes on the map at a time so doing go crazy*/
+	/**Divide this by the total size to generate and that will give you how many vertices going across the square there will be. So basically divide this by the total size to generate and multiple that by itself and that
+	 *is how many verts are in your mesh. But remember there are multiple of these meshes on the map at a time so don't go crazy*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Settings",meta = (ClampMin=1,AllowPrivateAccess=true))
 	float NoiseResolution=300;
 
@@ -164,6 +163,14 @@ private:
 	/**This is the starting location of the Map*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Square Arrays", meta = (AllowPrivateAccess = "true"))
 	AProceduralTerrainGen* Origin;
+
+	/**Whether or not to destroy the components when they are unloaded or to just make the invisible*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Square Arrays", meta = (AllowPrivateAccess = "true"))
+	bool bDestroyOnHide = false;
+
+
+	
+
 	
 };
 

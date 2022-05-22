@@ -1,9 +1,20 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
+// ReSharper disable CppTooWideScope
 #include "ProceduralTerrainComponent.h"
 
+#include "MeshDescription.h"
 #include "TerrainStructInfo.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Engine/StaticMesh.h"
+#include "IAssetTools.h"
+#include "DetailCategoryBuilder.h"
+#include "ProceduralMeshComponent.h"
+#include "StaticMeshAttributes.h"
+#include "PhysicsEngine/BodySetup.h"
+#include "Materials/Material.h"
+
 
 // Sets default values for this component's properties
 UProceduralTerrainComponent::UProceduralTerrainComponent()
@@ -12,9 +23,11 @@ UProceduralTerrainComponent::UProceduralTerrainComponent()
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = false;
 	ProceduralTerrainMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("ProceduralTerrainMesh"));
-	
+
+	//Init the terrain for this specific terrain mesh
 	TerrainNoise =CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("FastNoiseWrapper"));
 
+	//Init all the noises for the connected terrains
 	ConnectionNoises.Add(CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("NorthNoise")));
 	ConnectionNoises.Add(CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("NorthEastNoise")));
 	ConnectionNoises.Add(CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("EastNoise")));
@@ -28,8 +41,11 @@ UProceduralTerrainComponent::UProceduralTerrainComponent()
 
 void UProceduralTerrainComponent::InitializeFastNoise(const FTerrainInfo Terrain)
 {
+	//init out fast noise
 	TerrainNoise->SetupFastNoise(Terrain.NoiseType, Terrain.Seed, Terrain.Frequency, Terrain.Interp, Terrain.FractalType,
 				Terrain.Octaves,Terrain.Lacunarity,Terrain.Gain,Terrain.CellularJitter, Terrain.CellularDistanceFunction, Terrain.CellularReturnType);
+
+	//Save off the variables we need for calculations so we dont have to use getter in the fast noise to get access to these variables
 	NoiseResolution=Terrain.NoiseResolution;
 	TotalSizeToGenerate=Terrain.TotalSizeToGenerate;
 	NoiseInputScale=Terrain.NoiseInputScale;
@@ -40,6 +56,7 @@ void UProceduralTerrainComponent::InitializeFastNoise(const FTerrainInfo Terrain
 
 void UProceduralTerrainComponent::InitializeConnectionNoise(TArray<FTerrainInfo> Terrains) 
 {
+	//Init the connected terrain noises
 	for(int Index=0;Index < ConnectionNoises.Num();Index++)
 	{
 		ConnectionNoises[Index]->SetupFastNoise(Terrains[Index].NoiseType, Terrains[Index].Seed, Terrains[Index].Frequency, Terrains[Index].Interp, Terrains[Index].FractalType,
@@ -49,11 +66,17 @@ void UProceduralTerrainComponent::InitializeConnectionNoise(TArray<FTerrainInfo>
 
 void UProceduralTerrainComponent::GenerateMap(const FVector StartLocation)
 {
+	//Start location for our map to generate around
 	ComponentLocation= StartLocation;
 	
 
+	//How many points are in each line and how many lines there are to make the square
 	NoiseSamplesPerLine = TotalSizeToGenerate / NoiseResolution;
+
+	//How many vertices there are 
 	VerticesArraySize = NoiseSamplesPerLine * NoiseSamplesPerLine;
+
+	//Creating all the normals for the terrain
 	Normals.Init(FVector(0, 0, 1), VerticesArraySize);
 	//Tangents.Init(FRuntimeMeshTangent(0, -1, 0), VerticesArraySize);
 	UV.Init(FVector2D(0, 0), VerticesArraySize);
@@ -76,9 +99,159 @@ void UProceduralTerrainComponent::LoadMesh() const
 	ProceduralTerrainMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 }
 
+
+TMap<UMaterialInterface*, FPolygonGroupID> BuildMaterialMap(const UProceduralMeshComponent* ProcMeshComp, FMeshDescription& MeshDescription)
+{
+	TMap<UMaterialInterface*, FPolygonGroupID> UniqueMaterials;
+	const int32 NumSections = ProcMeshComp->GetNumSections();
+	UniqueMaterials.Reserve(NumSections);
+
+	FStaticMeshAttributes AttributeGetter(MeshDescription);
+	const TPolygonGroupAttributesRef<FName> PolygonGroupNames = AttributeGetter.GetPolygonGroupMaterialSlotNames();
+	for (int32 SectionIdx = 0; SectionIdx < NumSections; SectionIdx++)
+	{
+		UMaterialInterface *Material = ProcMeshComp->GetMaterial(SectionIdx);
+		if (Material == nullptr)
+		{
+			Material = UMaterial::GetDefaultMaterial(MD_Surface);
+		}
+
+		if (!UniqueMaterials.Contains(Material))
+		{
+			FPolygonGroupID NewPolygonGroup = MeshDescription.CreatePolygonGroup();
+			UniqueMaterials.Add(Material, NewPolygonGroup);
+			PolygonGroupNames[NewPolygonGroup] = Material->GetFName();
+		}
+	}
+	return UniqueMaterials;
+}
+
+FMeshDescription UProceduralTerrainComponent::BuildANewMeshDescription(UProceduralMeshComponent* ProcMeshComp)
+{
+	FMeshDescription MeshDescription;
+
+	FStaticMeshAttributes AttributeGetter(MeshDescription);
+	AttributeGetter.Register();
+
+	TVertexAttributesRef<FVector> VertexPositions = AttributeGetter.GetVertexPositions();
+	TVertexInstanceAttributesRef<FVector> DescriptionTangents = AttributeGetter.GetVertexInstanceTangents();
+	TVertexInstanceAttributesRef<float> BinomialSigns = AttributeGetter.GetVertexInstanceBinormalSigns();
+	TVertexInstanceAttributesRef<FVector> DescriptionNormals = AttributeGetter.GetVertexInstanceNormals();
+	TVertexInstanceAttributesRef<FVector4> Colors = AttributeGetter.GetVertexInstanceColors();
+	TVertexInstanceAttributesRef<FVector2D> UVs = AttributeGetter.GetVertexInstanceUVs();
+
+	// Materials to apply to new mesh
+	const int32 NumSections = ProcMeshComp->GetNumSections();
+	int32 VertexCount = 0;
+	int32 VertexInstanceCount = 0;
+	int32 PolygonCount = 0;
+
+	TMap<UMaterialInterface*, FPolygonGroupID> UniqueMaterials = BuildMaterialMap(ProcMeshComp, MeshDescription);
+	TArray<FPolygonGroupID> PolygonGroupForSection;
+	PolygonGroupForSection.Reserve(NumSections);
+
+	// Calculate the totals for each ProcMesh element type
+	for (int32 SectionIdx = 0; SectionIdx < NumSections; SectionIdx++)
+	{
+		FProcMeshSection *ProcSection =
+			ProcMeshComp->GetProcMeshSection(SectionIdx);
+		VertexCount += ProcSection->ProcVertexBuffer.Num();
+		VertexInstanceCount += ProcSection->ProcIndexBuffer.Num();
+		PolygonCount += ProcSection->ProcIndexBuffer.Num() / 3;
+	}
+	MeshDescription.ReserveNewVertices(VertexCount);
+	MeshDescription.ReserveNewVertexInstances(VertexInstanceCount);
+	MeshDescription.ReserveNewPolygons(PolygonCount);
+	MeshDescription.ReserveNewEdges(PolygonCount * 2);
+	UVs.SetNumIndices(4);
+
+	// Create the Polygon Groups
+	for (int32 SectionIdx = 0; SectionIdx < NumSections; SectionIdx++)
+	{
+		UMaterialInterface *Material = ProcMeshComp->GetMaterial(SectionIdx);
+		if (Material == nullptr)
+		{
+			Material = UMaterial::GetDefaultMaterial(MD_Surface);
+		}
+
+		FPolygonGroupID *PolygonGroupID = UniqueMaterials.Find(Material);
+		check(PolygonGroupID != nullptr);
+		PolygonGroupForSection.Add(*PolygonGroupID);
+	}
+
+
+	// Add Vertex and VertexInstance and polygon for each section
+	for (int32 SectionIdx = 0; SectionIdx < NumSections; SectionIdx++)
+	{
+		FProcMeshSection *ProcSection =
+			ProcMeshComp->GetProcMeshSection(SectionIdx);
+		FPolygonGroupID PolygonGroupID = PolygonGroupForSection[SectionIdx];
+		// Create the vertex
+		int32 NumVertex = ProcSection->ProcVertexBuffer.Num();
+		TMap<int32, FVertexID> VertexIndexToVertexID;
+		VertexIndexToVertexID.Reserve(NumVertex);
+		for (int32 VertexIndex = 0; VertexIndex < NumVertex; ++VertexIndex)
+		{
+			FProcMeshVertex &Vert = ProcSection->ProcVertexBuffer[VertexIndex];
+			const FVertexID VertexID = MeshDescription.CreateVertex();
+			VertexPositions[VertexID] = Vert.Position;
+			VertexIndexToVertexID.Add(VertexIndex, VertexID);
+		}
+		// Create the VertexInstance
+		int32 NumIndices = ProcSection->ProcIndexBuffer.Num();
+		int32 NumTri = NumIndices / 3;
+		TMap<int32, FVertexInstanceID> InduceIndexToVertexInstanceID;
+		InduceIndexToVertexInstanceID.Reserve(NumVertex);
+		for (int32 InduceIndex = 0; InduceIndex < NumIndices; InduceIndex++)
+		{
+			const int32 VertexIndex = ProcSection->ProcIndexBuffer[InduceIndex];
+			const FVertexID VertexID = VertexIndexToVertexID[VertexIndex];
+			const FVertexInstanceID VertexInstanceID =
+				MeshDescription.CreateVertexInstance(VertexID);
+			InduceIndexToVertexInstanceID.Add(InduceIndex, VertexInstanceID);
+
+			FProcMeshVertex &ProcVertex = ProcSection->ProcVertexBuffer[VertexIndex];
+
+			DescriptionTangents[VertexInstanceID] = ProcVertex.Tangent.TangentX;
+			DescriptionNormals[VertexInstanceID] = ProcVertex.Normal;
+			BinomialSigns[VertexInstanceID] =
+				ProcVertex.Tangent.bFlipTangentY ? -1.f : 1.f;
+
+			Colors[VertexInstanceID] = FLinearColor(ProcVertex.Color);
+
+			UVs.Set(VertexInstanceID, 0, ProcVertex.UV0);
+			UVs.Set(VertexInstanceID, 1, ProcVertex.UV1);
+			UVs.Set(VertexInstanceID, 2, ProcVertex.UV2);
+			UVs.Set(VertexInstanceID, 3, ProcVertex.UV3);
+		}
+
+		// Create the polygons for this section
+		for (int32 TriIdx = 0; TriIdx < NumTri; TriIdx++)
+		{
+			FVertexID VertexIndexes[3];
+			TArray<FVertexInstanceID> VertexInstanceIDs;
+			VertexInstanceIDs.SetNum(3);
+
+			for (int32 CornerIndex = 0; CornerIndex < 3; ++CornerIndex)
+			{
+				const int32 InduceIndex = (TriIdx * 3) + CornerIndex;
+				const int32 VertexIndex = ProcSection->ProcIndexBuffer[InduceIndex];
+				VertexIndexes[CornerIndex] = VertexIndexToVertexID[VertexIndex];
+				VertexInstanceIDs[CornerIndex] =
+					InduceIndexToVertexInstanceID[InduceIndex];
+			}
+
+			// Insert a polygon into the mesh
+			MeshDescription.CreatePolygon(PolygonGroupID, VertexInstanceIDs);
+		}
+	}
+	return MeshDescription;
+}
+
 void UProceduralTerrainComponent::GenerateVertices()
 {
 	Vertices.Init(FVector(0, 0, 0), VerticesArraySize);
+	//Loop through each vertices and set the position the vertices is located at scaled to the actual mesh
 	for (int y = 0; y < NoiseSamplesPerLine; y++) {
 		for (int x = 0; x < NoiseSamplesPerLine; x++) {
 			
@@ -114,9 +287,13 @@ void UProceduralTerrainComponent::GenerateTriangles()
 			Triangles[TriangleIndex] = BottomLeftIndex;
 			Triangles[TriangleIndex + 1] = TopLeftIndex;
 			Triangles[TriangleIndex + 2] = TopRightIndex;
+
+
+			
 			Triangles[TriangleIndex + 3] = BottomLeftIndex;
 			Triangles[TriangleIndex + 4] = TopRightIndex;
 			Triangles[TriangleIndex + 5] = BottomRightIndex;
+
 		}
 	}
 }
@@ -208,7 +385,7 @@ float UProceduralTerrainComponent::GetNoiseValueForGridCoordinates(const int X, 
 				if(bAverage)
 				{
 					const float FirstNoise =ConnectionNoises[0]->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //North
-					const float SecondNoise = TerrainNoise->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //Currrent
+					const float SecondNoise = TerrainNoise->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //Current
 					return (FirstNoise+SecondNoise) * 0.5 * FastNoiseOutputScale;
 				}
 			}
@@ -258,6 +435,94 @@ FVector2D UProceduralTerrainComponent::GetPositionForGridCoordinates(const int X
 		Y * NoiseResolution
 	);
 }
+
+UStaticMesh* UProceduralTerrainComponent::CreateStaticMesh() const
+{
+	
+	UProceduralMeshComponent* ProcMeshComp = ProceduralTerrainMesh;
+	if (ProcMeshComp != nullptr)
+	{
+		const FString NewNameSuggestion = FString(TEXT("ProcMesh"));
+		const FString PackageName = FString(TEXT("/Game/Meshes/")) + NewNameSuggestion;
+		FString Name;
+
+
+		const FString UserPackageName =PackageName;
+		const FName MeshName =*Name;
+
+
+		FMeshDescription MeshDescription = BuildANewMeshDescription(ProcMeshComp);
+
+		// If we got some valid data.
+		if (MeshDescription.Polygons().Num() > 0)
+		{
+			// Then find/create it.
+			UPackage* Package = CreatePackage(*UserPackageName);
+			check(Package);
+
+			// Create StaticMesh object
+			UStaticMesh* StaticMesh = NewObject<UStaticMesh>(Package, MeshName, RF_Public | RF_Standalone);
+			StaticMesh->InitResources();
+
+			StaticMesh->LightingGuid = FGuid::NewGuid();
+
+			// Add source to new StaticMesh
+			FStaticMeshSourceModel& SrcModel = StaticMesh->AddSourceModel();
+			SrcModel.BuildSettings.bRecomputeNormals = false;
+			SrcModel.BuildSettings.bRecomputeTangents = false;
+			SrcModel.BuildSettings.bRemoveDegenerates = false;
+			SrcModel.BuildSettings.bUseHighPrecisionTangentBasis = false;
+			SrcModel.BuildSettings.bUseFullPrecisionUVs = false;
+			SrcModel.BuildSettings.bGenerateLightmapUVs = true;
+			SrcModel.BuildSettings.SrcLightmapIndex = 0;
+			SrcModel.BuildSettings.DstLightmapIndex = 1;
+			StaticMesh->CreateMeshDescription(0, MoveTemp(MeshDescription));
+			StaticMesh->CommitMeshDescription(0);
+
+			//// SIMPLE COLLISION
+			if (!ProcMeshComp->bUseComplexAsSimpleCollision )
+			{
+				StaticMesh->CreateBodySetup();
+				UBodySetup* NewBodySetup = StaticMesh->BodySetup;
+				NewBodySetup->BodySetupGuid = FGuid::NewGuid();
+				NewBodySetup->AggGeom.ConvexElems = ProcMeshComp->ProcMeshBodySetup->AggGeom.ConvexElems;
+				NewBodySetup->bGenerateMirroredCollision = false;
+				NewBodySetup->bDoubleSidedGeometry = true;
+				NewBodySetup->CollisionTraceFlag = CTF_UseDefault;
+				NewBodySetup->CreatePhysicsMeshes();
+			}
+
+			//// MATERIALS
+			TSet<UMaterialInterface*> UniqueMaterials;
+			const int32 NumSections = ProcMeshComp->GetNumSections();
+			for (int32 SectionIdx = 0; SectionIdx < NumSections; SectionIdx++)
+			{
+				UMaterialInterface *Material = ProcMeshComp->GetMaterial(SectionIdx);
+				UniqueMaterials.Add(Material);
+			}
+			// Copy materials to new mesh
+			for (auto* Material : UniqueMaterials)
+			{
+				StaticMesh->StaticMaterials.Add(FStaticMaterial(Material));
+			}
+
+			//Set the Imported version before calling the build
+			StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
+
+			// Build mesh from source
+			StaticMesh->Build(false);
+			StaticMesh->PostEditChange();
+
+			// Notify asset registry of new asset
+			FAssetRegistryModule::AssetCreated(StaticMesh);
+
+
+			return StaticMesh;
+		}
+	}
+	return nullptr;
+}
+
 
 
 

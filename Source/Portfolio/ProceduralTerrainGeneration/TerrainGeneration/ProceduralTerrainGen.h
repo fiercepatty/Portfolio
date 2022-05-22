@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ProceduralFoliageComponent.h"
 #include "ProceduralTerrainComponent.h"
 #include "ProceduralWaterComponent.h"
 #include "GameFramework/Actor.h"
@@ -34,6 +35,10 @@ public:
 	UPROPERTY(VisibleAnywhere)
 	UProceduralTerrainComponent* ProceduralTerrain;
 
+	//Used to save off the static meshes when I was doing the test on performance
+	
+	//UStaticMeshComponent* StaticProceduralTerrain;
+
 	//This is what actually create the mesh for the water that is attached to it
 	UPROPERTY(VisibleAnywhere)
 	UProceduralWaterComponent* ProceduralWater;
@@ -45,11 +50,16 @@ public:
 	void GenerateTerrain();
 
 	/**
+	 * Used to generate the nature for a specific terrain
+	 */
+	void GenerateNatureInternal();
+
+	/**
 	 * @param TerrainInfo - this is the Noise Parameter used to create the Mesh
 	 * @param ConnectedTerrainInfos - the terrain in for all of the connected Terrains
 	 * This function is used to setup all the fast noise wrapper settings that need to be set before we can generate the mesh
 	 */
-	void InitializeVariable(FTerrainInfo TerrainInfo, TArray<FTerrainInfo> ConnectedTerrainInfos) const;
+	void InitializeVariable(FTerrainInfo TerrainInfo, TArray<FTerrainInfo> ConnectedTerrainInfos) ;
 
 	/**
 	 * @param TerrainInfo - this is the Noise Parameter used to create the Mesh
@@ -60,10 +70,16 @@ public:
 	void InitializeVariable(FTerrainInfo TerrainInfo,TArray<FTerrainInfo> ConnectedTerrainInfos, FWaterInfo WaterInfo);
 
 	//LoadingTerrainIn
-	void LoadTerrain() const;
+	void LoadTerrain() ;
 
 	//Unloading Terrain
-	void UnloadTerrain() const;
+	void UnloadTerrain();
+
+	//Function used to hide nature
+	void HideNature();
+
+	//Function used to load nature
+	void LoadNature();
 
 	//This was done in a way like a linked list
 	
@@ -83,6 +99,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Terrain Settings")
 	AProceduralTerrainGen* SouthTerrainGenerated;
 
+	
 private:
 	//Helper function to create the terrain 
 	void GenerateCurrentLandscape() const;
@@ -101,10 +118,38 @@ private:
 	 * Uses the helper function line trace to complete this task
 	 */
 	void FindConnections(AProceduralTerrainGen* CurrentTerrain) const;
-	
 
-	
-	
+	/**The Foliage attached to the terrain*/
+	UPROPERTY()
+	TMap<UStaticMesh*, UHierarchicalInstancedStaticMeshComponent*> NatureStaticMeshHISM_Correspondence;
+
+	/**
+	 * Boolean controls whether or not we generate nature with our terrain
+	 */
+	bool bGenerateNature = false;
+
+	//Saved off of all the Biome Foliage options for generating terrain
+	TArray<FNatureInfo> BiomeFoliage;
+
+	//All the Triangles in the terrain mesh that a foliage object could be spawned on
+	TArray<FNatureTriangle> NatureTriangles;
+
+	// Function pointers declaration
+	typedef bool (FNatureTriangle::* IsInsideHeightRangeFuncPtr)(const float LowerHeight, const float HigherHeight) const;
+	typedef FQuat(AProceduralTerrainGen::* GetBiomeRotationFuncPtr)(FRandomStream&, const FNatureTriangle&, const FVector&) const;
+
+	//The different functions used for the function pointers
+	FQuat GetBiomeRandomRotation(FRandomStream& RandomNumberGenerator, const FNatureTriangle& Triangle, const FVector& Location) const;
+	static FQuat GetRandomYawQuat(const FRandomStream& RandomNumberGenerator);
+	FQuat GetBiomePlaneShapeRotation( FRandomStream& RandomNumberGenerator, const FNatureTriangle& Triangle, const FVector& Location) const;
+	FQuat GetBiomeMeshSurfaceRotation(FRandomStream& RandomNumberGenerator, const FNatureTriangle& Triangle, const FVector& Location) const;
+
+	//internal function used to setup all the nature triangles that are used when generating the foliage
+	void InitNatureTriangles();
+
+	//Get the Candidates for the foliage to spawn on from the height parameters given
+	void GetTriangleCandidates(const FVector2D& HeightPercentageRangeToLocateElements,const bool bUseLocationsOutsideHeightRange,
+		const int32 MaxCandidatesToGet,const ENatureBiomes Biome, const FRandomStream& RandomNumberGenerator,TArray<int32>& TriangleCandidateIndexes);
 
 };
 

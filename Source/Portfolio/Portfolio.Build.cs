@@ -13,14 +13,14 @@ public class Portfolio : ModuleRules
 			"Portfolio/ProceduralTerrainGeneration",
 			"Portfolio/ProceduralTerrainGeneration/WaterGeneration",
 			"Portfolio/ProceduralTerrainGeneration/TerrainGeneration"
-			
 		});
 		
 		
         PublicDependencyModuleNames.AddRange(new string[]
         {
 	        "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "NavigationSystem", "AIModule",
-	        "FastNoise","FastNoiseGenerator", "ProceduralMeshComponent"
+	        "FastNoise","FastNoiseGenerator", "ProceduralMeshComponent", "MeshDescription" ,"StaticMeshDescription", "Foliage"
+
         });
         
 
