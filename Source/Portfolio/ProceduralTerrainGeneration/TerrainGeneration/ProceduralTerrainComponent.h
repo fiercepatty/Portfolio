@@ -89,9 +89,9 @@ public:
 	UStaticMesh* CreateStaticMesh() const;
 
 	//Getter for the Vertices of he terrain;
-	inline TArray<FVector> GetVertices()
+	inline TArray<FNatureTriangle> GetNatureTriangles()
 	{
-		return Vertices;
+		return NatureTriangles;
 	}
 
 
@@ -107,6 +107,9 @@ private:
 
 	//All the triangles of the terrain
 	TArray<int> Triangles;
+
+	//Array of all the nature triangles in the terrain
+	TArray<FNatureTriangle> NatureTriangles;
 
 	
 

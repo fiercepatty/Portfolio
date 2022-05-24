@@ -135,10 +135,19 @@ void AProceduralTerrainGen::GenerateNatureInternal()
 				// If all triangle candidates has been already used, take a random one
 				const int32 TriangleCandidateIndex = NewMeshIndex <= NumTriangleCandidatesLessOne ? NewMeshIndex : RandomNumberGenerator.RandRange(0, NumTriangleCandidatesLessOne);
 
-				const FNatureTriangle& RandomTriangle = NatureTriangles[TriangleCandidateIndexes[TriangleCandidateIndex]];
+				FNatureTriangle& RandomTriangle = NatureTriangles[TriangleCandidateIndexes[TriangleCandidateIndex]];
 
 				// Pick a random available location on triangle
 				MeshTransform.SetLocation(RandomTriangle.GetRandomPointOnTriangle(RandomNumberGenerator));
+
+				if(MeshTransform.GetLocation()==FVector(0))
+				{
+					continue;
+				}
+				else
+				{
+					RandomTriangle.UsedTriangle();
+				}
 
 				// Set rotation
 				MeshTransform.SetRotation(((this->*GetBiomeElementRotationFunction)(RandomNumberGenerator, RandomTriangle, MeshTransform.GetLocation())));
@@ -272,18 +281,12 @@ FQuat AProceduralTerrainGen::GetBiomePlaneShapeRotation( FRandomStream& RandomNu
 
 FQuat AProceduralTerrainGen::GetBiomeMeshSurfaceRotation(FRandomStream& RandomNumberGenerator, const FNatureTriangle& Triangle, const FVector& Location) const
 {
-	return Triangle.GetSurfaceNormal() * GetRandomYawQuat(RandomNumberGenerator);
+	return Triangle.GetSurfaceNormal(); //* GetRandomYawQuat(RandomNumberGenerator);
 }
 
 void AProceduralTerrainGen::InitNatureTriangles()
 {
-	//Get How many vertices there are int the triangle, the vertices were added to the array in a specific way so it is easy to index into them
-	TArray<FVector> Vertices = ProceduralTerrain->GetVertices();
-
-	for(int Index =0;Vertices.Num()-1>Index+3;Index+=3)
-	{
-		NatureTriangles.Add(FNatureTriangle(Vertices[Index],Vertices[Index+1],Vertices[Index+2]));
-	}
+	NatureTriangles = ProceduralTerrain->GetNatureTriangles();
 }
 
 void AProceduralTerrainGen::HideNature()
@@ -361,6 +364,11 @@ void AProceduralTerrainGen::GetTriangleCandidates(const FVector2D& HeightPercent
 		}
 
 		const FNatureTriangle& Tri = NatureTriangles[i];
+
+		if(Tri.IsInUse())
+		{
+			continue;
+		}
 
 		// If height check is needed...
 		if (bHeightCheckNeeded)

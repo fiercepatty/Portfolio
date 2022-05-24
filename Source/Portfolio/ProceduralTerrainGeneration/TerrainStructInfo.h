@@ -1,5 +1,6 @@
 #pragma once
 #include "FastNoiseWrapper.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "TerrainStructInfo.generated.h"
 
 UENUM(BlueprintType)
@@ -250,6 +251,7 @@ public:
 	FVector VertexA;
 	FVector VertexB;
 	FVector VertexC;
+	bool bInUse=false;
 	
 	explicit FNatureTriangle(const FVector& vertexA = FVector::ZeroVector,const FVector& vertexB = FVector::ZeroVector,const FVector& vertexC = FVector::ZeroVector)
 	{
@@ -278,6 +280,31 @@ public:
 			|| (bIsVertexB_InsideHeightRange && bIsVertexC_InsideHeightRange);
 	}
 
+	inline bool IsInUse()const
+	{
+		return bInUse;
+	}
+
+	inline void UsedTriangle()
+	{
+		bInUse=true;
+	}
+
+	inline FVector GetMiddlePointAB() const
+	{
+		return VertexA - ((VertexA - VertexB) * 0.5);
+	}
+
+	inline FVector GetMiddlePointBC() const
+	{
+		return VertexB - ((VertexB - VertexC) * 0.5);
+	}
+
+	inline FVector GetMiddlePointAC() const
+	{
+		return VertexA - ((VertexA - VertexC) * 0.5);
+	}
+
 	/**
 	* Gets a random point on the triangle surface.
 	* References:
@@ -289,6 +316,10 @@ public:
 	*/
 	inline FVector GetRandomPointOnTriangle(const FRandomStream& RandomNumberGenerator) const
 	{
+		if(bInUse)
+		{
+			return FVector(0);
+		}
 		float RandomA = RandomNumberGenerator.GetFraction();
 		float RandomB = RandomNumberGenerator.GetFraction();
 
@@ -297,7 +328,6 @@ public:
 			RandomA = 1.0f - RandomA;
 			RandomB = 1.0f - RandomB;
 		}
-
 		return VertexA + RandomA * (VertexB - VertexA) + RandomB * (VertexC - VertexA);
 	}
 
@@ -313,9 +343,9 @@ public:
 	{
 		const FVector v = VertexB - VertexA;
 		const FVector w = VertexC - VertexA;
-		const FRotator RotatorCorrection = FRotator(90.0f, 0.0f, 0.0f);
+		const FRotator rotatorCorrection = FRotator(90.0f, 0.0f, 0.0f);
 
-		return (FVector((v.Y * w.Z) - (v.Z * w.Y), (v.Z * w.X) - (v.X * w.Z), (v.X * w.Y) - (v.Y * w.X)).Rotation() + RotatorCorrection).Quaternion();
+		return (FVector((v.Y * w.Z) - (v.Z * w.Y), (v.Z * w.X) - (v.X * w.Z), (v.X * w.Y) - (v.Y * w.X)).Rotation() + rotatorCorrection).Quaternion();
 	}
 };
 

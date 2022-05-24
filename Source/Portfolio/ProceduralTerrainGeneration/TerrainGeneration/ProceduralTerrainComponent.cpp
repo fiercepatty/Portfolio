@@ -289,11 +289,16 @@ void UProceduralTerrainComponent::GenerateTriangles()
 			Triangles[TriangleIndex + 1] = TopLeftIndex;
 			Triangles[TriangleIndex + 2] = TopRightIndex;
 
+			NatureTriangles.Add(FNatureTriangle(Vertices[BottomLeftIndex],Vertices[TopLeftIndex],Vertices[TopRightIndex]));
+
 
 			
 			Triangles[TriangleIndex + 3] = BottomLeftIndex;
 			Triangles[TriangleIndex + 4] = TopRightIndex;
 			Triangles[TriangleIndex + 5] = BottomRightIndex;
+
+			NatureTriangles.Add(FNatureTriangle(Vertices[BottomLeftIndex],Vertices[TopRightIndex],Vertices[BottomRightIndex]));
+
 
 		}
 	}
