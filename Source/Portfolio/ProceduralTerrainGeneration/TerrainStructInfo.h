@@ -76,9 +76,34 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "100.0", UIMax = "100.0"))
 	FVector2D HeightPercentageRangeToLocateNatureMeshes;
 
-	/** Enable this option to get the inverted result (nature meshes will be located only out of height range). */
+	/** Height Offset for the Z axis for spawning in a foliage asset
+	 * For example, if the value is positive then the foliage will be spawned higher in the world or if the value is negative the foliage will spawn lower in the world
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties")
-	bool bUseLocationsOutsideHeightRange;
+	float SpawnHeightOffset;
+
+	/**How much shade this mesh produces
+	 * The World is broken up into a bunch of squares and if this shading distance is big enough to overlap in the area of a square then that how square will be set to be shaded
+	 * and only meshes that have the Grow in Shade boolean will be allowed to grow in that square
+	 * If the shade is smaller than what a square's size is then it will be ignored
+	 * The size of the square is based off of the Noise Resolution
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties" , meta = (ClampMin = "0.0"))
+	float ShadingDistance;
+
+	/**Can the mesh grow in shade or not
+	 * If true then the mesh will ignore if there is shade. Useful if this mesh is a rock and is needed to be place everywhere
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties")
+	bool bCanGrowInShade;
+
+	/**
+	 * The mesh will only be able to grow in shade if this is checked
+	 * If this is true it is assumed that bCanGrowInShade is checked if not then the Mesh will not be allow to grow
+	 * Ensure both are checked if it is desired for a mesh to grow
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties")
+	bool bOnlyGrowInShade;
 	
 	FNatureInfo()
 	{
@@ -90,7 +115,10 @@ public:
 		RotationType = ENatureRotationTypes::MeshSurfaceNormal;
 		Seed = 1317;
 		HeightPercentageRangeToLocateNatureMeshes = FVector2D(0.0f, 100.0f);
-		bUseLocationsOutsideHeightRange = false;
+		SpawnHeightOffset = 0;
+		ShadingDistance=0;
+		bCanGrowInShade=false;
+		bOnlyGrowInShade=false;
 	}
 
 	~FNatureInfo()
@@ -239,100 +267,103 @@ public:
 };
 
 
-
 USTRUCT()
-struct FNatureTriangle
+struct FNatureSquares
 {
 	GENERATED_BODY()
-
 public:
-
-	//The vertexes that create the triangle
+	//Vertexes for Square
 	FVector VertexA;
 	FVector VertexB;
 	FVector VertexC;
-	bool bInUse=false;
-	
-	explicit FNatureTriangle(const FVector& vertexA = FVector::ZeroVector,const FVector& vertexB = FVector::ZeroVector,const FVector& vertexC = FVector::ZeroVector)
+	FVector VertexD;
+	bool bUsed = false;
+	bool bShade = false;
+	bool bUsedFirstTriangle=false;
+	FVector CenterLocation;
+	float DistanceFromCenterToEdge;
+
+	explicit FNatureSquares(const FVector& vertexA = FVector::ZeroVector,const FVector& vertexB = FVector::ZeroVector,const FVector& vertexC = FVector::ZeroVector,const FVector& vertexD = FVector::ZeroVector)
 	{
 		VertexA = vertexA;
 		VertexB = vertexB;
 		VertexC = vertexC;
+		VertexD = vertexD;
+		CenterLocation =  -(VertexC-VertexA)/2 + VertexC;
+		DistanceFromCenterToEdge =(VertexB-VertexA).Size()/2;
 	}
-
-	~FNatureTriangle() {}
+	~FNatureSquares() {}
 
 	/**
-	* Tells whether at least 2 vertices of this triangle are within the given height range for plane terrain shapes.
+	* Tells whether all the vertexes are in the height range
 	*
 	* @param LowerHeight -	The lower height value.
 	* @param HigherHeight -	The higher height value.
-	* @return True if at least 2 vertices of this triangle are within the given height range.
+	* @return True if at all vertices of this triangle are within the given height range.
 	*/
 	inline bool IsInsidePlaneHeightRange(const float LowerHeight, const float HigherHeight) const
 	{
 		const bool bIsVertexA_InsideHeightRange = VertexA.Z > LowerHeight && VertexA.Z < HigherHeight;
 		const bool bIsVertexB_InsideHeightRange = VertexB.Z > LowerHeight && VertexB.Z < HigherHeight;
 		const bool bIsVertexC_InsideHeightRange = VertexC.Z > LowerHeight && VertexC.Z < HigherHeight;
+		const bool bIsVertexD_InsideHeightRange = VertexD.Z > LowerHeight && VertexD.Z < HigherHeight;
 
-		return (bIsVertexA_InsideHeightRange && bIsVertexB_InsideHeightRange)
-			|| (bIsVertexA_InsideHeightRange && bIsVertexC_InsideHeightRange)
-			|| (bIsVertexB_InsideHeightRange && bIsVertexC_InsideHeightRange);
+		return bIsVertexA_InsideHeightRange && bIsVertexB_InsideHeightRange && bIsVertexC_InsideHeightRange && bIsVertexD_InsideHeightRange;
 	}
-
-	inline bool IsInUse()const
+	
+	/**
+	 * Get A random point on the square. First by picking which triangle we want to be using and the do the random calculation we did with the FNatureTriangle
+	 * References:
+	 * - https://adamswaab.wordpress.com/2009/12/11/random-point-in-a-triangle-barycentric-coordinates/
+	 * - https://math.stackexchange.com/questions/538458/triangle-point-picking-in-3d
+	 * @returns A boolean if we were successful or not
+	 * @param RandomNumberGenerator the FRandomStream that all random calculation are created off of
+	 * @param OutLocation the result of the calculation
+	 */
+	inline bool GetRandomPointOnSquare(const FRandomStream& RandomNumberGenerator, FVector& OutLocation)
 	{
-		return bInUse;
-	}
+		if(bUsed)
+		{
+			return false;
+		}
+		else
+		{
+			const int RandomBool =RandomNumberGenerator.RandRange(0,1);
+			if(RandomBool == 0)
+			{
+				float RandomA = RandomNumberGenerator.GetFraction();
+				float RandomB = RandomNumberGenerator.GetFraction();
 
-	inline void UsedTriangle()
-	{
-		bInUse=true;
-	}
+				if (RandomA + RandomB >= 1.0f)
+				{
+					RandomA = 1.0f - RandomA;
+					RandomB = 1.0f - RandomB;
+				}
+				OutLocation= VertexA + RandomA * (VertexB - VertexA) + RandomB * (VertexC - VertexA);
+				bUsedFirstTriangle=true;
+				return true;
+			}
+			else
+			{
+				float RandomA = RandomNumberGenerator.GetFraction();
+				float RandomB = RandomNumberGenerator.GetFraction();
 
-	inline FVector GetMiddlePointAB() const
-	{
-		return VertexA - ((VertexA - VertexB) * 0.5);
-	}
-
-	inline FVector GetMiddlePointBC() const
-	{
-		return VertexB - ((VertexB - VertexC) * 0.5);
-	}
-
-	inline FVector GetMiddlePointAC() const
-	{
-		return VertexA - ((VertexA - VertexC) * 0.5);
+				if (RandomA + RandomB >= 1.0f)
+				{
+					RandomA = 1.0f - RandomA;
+					RandomB = 1.0f - RandomB;
+				}
+				OutLocation= VertexD + RandomA * (VertexB - VertexD) + RandomB * (VertexC - VertexD);
+				bUsedFirstTriangle=false;
+				return true;
+			
+			}
+		}
+		
 	}
 
 	/**
-	* Gets a random point on the triangle surface.
-	* References:
-	* - https://adamswaab.wordpress.com/2009/12/11/random-point-in-a-triangle-barycentric-coordinates/
-	* - https://math.stackexchange.com/questions/538458/triangle-point-picking-in-3d
-	*
-	* @param RandomNumberGenerator -	Random generator stream.
-	* @return A random point in the triangle.
-	*/
-	inline FVector GetRandomPointOnTriangle(const FRandomStream& RandomNumberGenerator) const
-	{
-		if(bInUse)
-		{
-			return FVector(0);
-		}
-		float RandomA = RandomNumberGenerator.GetFraction();
-		float RandomB = RandomNumberGenerator.GetFraction();
-
-		if (RandomA + RandomB >= 1.0f)
-		{
-			RandomA = 1.0f - RandomA;
-			RandomB = 1.0f - RandomB;
-		}
-		return VertexA + RandomA * (VertexB - VertexA) + RandomB * (VertexC - VertexA);
-	}
-
-	/**
-	* Gets the triangle surface normal quaternion.
+	* Gets the triangle surface normal quaternion. Uses the interal boolean bUsedFirstTriangle to know which triangle to get the normal of
 	* References:
 	* - https://math.stackexchange.com/questions/305642/how-to-find-surface-normal-of-a-triangle
 	* - https://math.stackexchange.com/questions/538458/triangle-point-picking-in-3d
@@ -341,14 +372,24 @@ public:
 	*/
 	inline FQuat GetSurfaceNormal() const
 	{
-		const FVector v = VertexB - VertexA;
-		const FVector w = VertexC - VertexA;
-		const FRotator rotatorCorrection = FRotator(90.0f, 0.0f, 0.0f);
+		if(bUsedFirstTriangle)
+		{
+			const FVector v = VertexB - VertexA;
+			const FVector w = VertexC - VertexA;
+			const FRotator RotatorCorrection = FRotator(90.0f, 0.0f, 0.0f);
 
-		return (FVector((v.Y * w.Z) - (v.Z * w.Y), (v.Z * w.X) - (v.X * w.Z), (v.X * w.Y) - (v.Y * w.X)).Rotation() + rotatorCorrection).Quaternion();
+			return (FVector((v.Y * w.Z) - (v.Z * w.Y), (v.Z * w.X) - (v.X * w.Z), (v.X * w.Y) - (v.Y * w.X)).Rotation() + RotatorCorrection).Quaternion();
+		}
+		else
+		{
+			const FVector v = VertexB - VertexD;
+			const FVector w = VertexC - VertexD;
+			const FRotator RotatorCorrection = FRotator(90.0f, 0.0f, 0.0f);
+
+			return (FVector((v.Y * w.Z) - (v.Z * w.Y), (v.Z * w.X) - (v.X * w.Z), (v.X * w.Y) - (v.Y * w.X)).Rotation() + RotatorCorrection).Quaternion();
+		}
 	}
 };
-
 
 USTRUCT(BlueprintType)
 struct FBiomeInfo

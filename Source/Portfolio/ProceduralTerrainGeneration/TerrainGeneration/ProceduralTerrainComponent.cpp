@@ -273,6 +273,8 @@ void UProceduralTerrainComponent::GenerateTriangles()
 	const int TrianglesArraySize = NumberOfQuadsPerLine * NumberOfQuadsPerLine * QuadSize;
 	Triangles.Init(0, TrianglesArraySize);
 
+	NatureSquares.Init(TArray<FNatureSquares>(),NumberOfQuadsPerLine);
+
 	for (int y = 0; y < NumberOfQuadsPerLine; y++) {
 		for (int x = 0; x < NumberOfQuadsPerLine; x++) {
 			const int QuadIndex = x + y * NumberOfQuadsPerLine;
@@ -289,7 +291,7 @@ void UProceduralTerrainComponent::GenerateTriangles()
 			Triangles[TriangleIndex + 1] = TopLeftIndex;
 			Triangles[TriangleIndex + 2] = TopRightIndex;
 
-			NatureTriangles.Add(FNatureTriangle(Vertices[BottomLeftIndex],Vertices[TopLeftIndex],Vertices[TopRightIndex]));
+			//NatureTriangles.Add(FNatureTriangle(Vertices[BottomLeftIndex],Vertices[TopLeftIndex],Vertices[TopRightIndex]));
 
 
 			
@@ -297,9 +299,8 @@ void UProceduralTerrainComponent::GenerateTriangles()
 			Triangles[TriangleIndex + 4] = TopRightIndex;
 			Triangles[TriangleIndex + 5] = BottomRightIndex;
 
-			NatureTriangles.Add(FNatureTriangle(Vertices[BottomLeftIndex],Vertices[TopRightIndex],Vertices[BottomRightIndex]));
-
-
+			//NatureTriangles.Add(FNatureTriangle(Vertices[BottomLeftIndex],Vertices[TopRightIndex],Vertices[BottomRightIndex]));
+			NatureSquares[y].Add(FNatureSquares(Vertices[BottomLeftIndex],Vertices[TopLeftIndex],Vertices[TopRightIndex],Vertices[BottomRightIndex]));
 		}
 	}
 }

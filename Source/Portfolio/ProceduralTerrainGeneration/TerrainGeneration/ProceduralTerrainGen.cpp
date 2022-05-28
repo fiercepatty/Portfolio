@@ -1,6 +1,7 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
 
+// ReSharper disable CppMemberFunctionMayBeStatic
 #include "ProceduralTerrainGen.h"
 
 #include "DrawDebugHelpers.h"
@@ -27,18 +28,37 @@ AProceduralTerrainGen::AProceduralTerrainGen()
 		ProceduralWater=CreateDefaultSubobject<UProceduralWaterComponent>(TEXT("ProceduralWater"));
 		ProceduralWater->ProceduralWaterMesh->AttachToComponent(RootComponent,FAttachmentTransformRules::KeepRelativeTransform);
 	}
-	/*if(!StaticProceduralTerrain)
-	{
-		StaticProceduralTerrain=CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticProceduralTerrain"));
-		StaticProceduralTerrain->AttachToComponent(RootComponent,FAttachmentTransformRules::KeepRelativeTransform);
-		StaticProceduralTerrain->SetCollisionProfileName(FName(TEXT("BlockAll")));
-	}*/
 	//Create and attach the trigger box to the root component that is the procedural mesh
 	TerrainTriggerBox=CreateDefaultSubobject<UBoxComponent>(TEXT("TerrainTriggerBox"));
 	TerrainTriggerBox->AttachToComponent(RootComponent,FAttachmentTransformRules::KeepRelativeTransform);
 	TerrainTriggerBox->SetCollisionProfileName(FName(TEXT("Trigger")));
 	TerrainTriggerBox->SetGenerateOverlapEvents(true);
 
+}
+
+void AProceduralTerrainGen::DrawNatureSquares()
+{
+	for(TArray<FNatureSquares>& RowOfSquares : NatureSquares)
+	{
+		for(FNatureSquares& Square : RowOfSquares)
+		{
+			FVector Pos = Square.CenterLocation +GetActorLocation();
+			FVector BoxExtent = FVector(Square.DistanceFromCenterToEdge);
+			if(Square.bUsed)
+			{
+				DrawDebugBox(GetWorld(),Pos,BoxExtent,ColorInUse,bPersistentLines,DebugDrawTime,DepthPriority,DebugBoxThickness);
+			}
+			else if(Square.bShade)
+			{
+				DrawDebugBox(GetWorld(),Pos,BoxExtent,ColorInShade,bPersistentLines,DebugDrawTime,DepthPriority,DebugBoxThickness);
+			}
+			else
+			{
+				DrawDebugBox(GetWorld(),Pos,BoxExtent,ColorNoFoliageOrShade,bPersistentLines,DebugDrawTime,DepthPriority,DebugBoxThickness);
+			}
+		}
+	}
+	
 }
 
 void AProceduralTerrainGen::GenerateTerrain()
@@ -59,8 +79,8 @@ void AProceduralTerrainGen::GenerateNatureInternal()
 {
 	if(bGenerateNature)
 	{
-		//Find the Triangles for the mesh	
-		InitNatureTriangles();
+		//Find the Squares for the mesh	
+		InitNatureSquares();
 
 		FRandomStream RandomNumberGenerator;
 	
@@ -77,22 +97,23 @@ void AProceduralTerrainGen::GenerateNatureInternal()
 			//Determine how many meshes to spawn
 			const uint32 MeshesToSpawn = RandomNumberGenerator.RandRange(BiomeNature.MinMeshesToSpawn,BiomeNature.MaxMeshesToSpawn);
 
-			//Get our triangle candidates for spawning in a mesh
-			TArray<int32> TriangleCandidateIndexes;
-			GetTriangleCandidates
+			//Get our square candidates for spawning in a mesh
+			TArray<int32> SquareCandidateIndexes;
+			GetSquareCandidates
 			(
 				BiomeNature.HeightPercentageRangeToLocateNatureMeshes,
-				BiomeNature.bUseLocationsOutsideHeightRange,
 				MeshesToSpawn,
 				BiomeNature.CorrespondingBiome,
 				RandomNumberGenerator,
-				TriangleCandidateIndexes
+				SquareCandidateIndexes,
+				BiomeNature.bCanGrowInShade,
+				BiomeNature.bOnlyGrowInShade
 			);
 
 
 			// If there are no triangle candidates go to the next Biome Nature Structure
-			const uint32 NumTriangleCandidates = TriangleCandidateIndexes.Num();
-			if (NumTriangleCandidates == 0) continue;
+			const uint32 NumSquareCandidates = SquareCandidateIndexes.Num();
+			if (NumSquareCandidates == 0) continue;
 
 			//Determine what rotation the Biome Nature needs
 			GetBiomeRotationFuncPtr GetBiomeElementRotationFunction = nullptr;
@@ -120,7 +141,7 @@ void AProceduralTerrainGen::GenerateNatureInternal()
 
 			
 			const uint32 NumBiomeMeshesLessOne = NumMeshes - 1;
-			const uint32 NumTriangleCandidatesLessOne = NumTriangleCandidates - 1;
+			const uint32 NumSquareCandidatesLessOne = NumSquareCandidates - 1;
 			const float MinScale = BiomeNature.MinMaxScale.X;
 			const float MaxScale = BiomeNature.MinMaxScale.Y;
 			const TArray<UStaticMesh*>& Meshes = BiomeNature.Meshes;
@@ -131,26 +152,35 @@ void AProceduralTerrainGen::GenerateNatureInternal()
 			// Iterate through every mesh to generate, giving him a new random location, scale and rotation if needed
 			for (uint32 NewMeshIndex = 0; NewMeshIndex < MeshesToSpawn; NewMeshIndex++)
 			{
+				//If we reach the end of our candidates we break out of trying to spawn more because there isn't any locations to spawn at
+				if(NewMeshIndex> NumSquareCandidatesLessOne)
+					break;
 
-				// If all triangle candidates has been already used, take a random one
-				const int32 TriangleCandidateIndex = NewMeshIndex <= NumTriangleCandidatesLessOne ? NewMeshIndex : RandomNumberGenerator.RandRange(0, NumTriangleCandidatesLessOne);
+				FNatureSquares& RandomSquare = GetNatureSquareAtIndex(SquareCandidateIndexes[NewMeshIndex]);
 
-				FNatureTriangle& RandomTriangle = NatureTriangles[TriangleCandidateIndexes[TriangleCandidateIndex]];
+				if(RandomSquare.bShade)
+				{
+					if(!BiomeNature.bCanGrowInShade)
+					{
+						continue;
+					}
+				}
 
 				// Pick a random available location on triangle
-				MeshTransform.SetLocation(RandomTriangle.GetRandomPointOnTriangle(RandomNumberGenerator));
-
-				if(MeshTransform.GetLocation()==FVector(0))
+				FVector RandomLocation;
+				const bool bSuccess = RandomSquare.GetRandomPointOnSquare(RandomNumberGenerator,RandomLocation);
+				if(bSuccess)
 				{
-					continue;
+					RandomLocation.Z += BiomeNature.SpawnHeightOffset;
+					MeshTransform.SetLocation(RandomLocation);
 				}
 				else
 				{
-					RandomTriangle.UsedTriangle();
+					continue;
 				}
 
 				// Set rotation
-				MeshTransform.SetRotation(((this->*GetBiomeElementRotationFunction)(RandomNumberGenerator, RandomTriangle, MeshTransform.GetLocation())));
+				MeshTransform.SetRotation(((this->*GetBiomeElementRotationFunction)(RandomNumberGenerator, RandomSquare, MeshTransform.GetLocation())));
 
 				// Generate a random mesh scale between a defined min. and max.
 				const float RandomScale = RandomNumberGenerator.FRandRange(MinScale, MaxScale);
@@ -161,6 +191,12 @@ void AProceduralTerrainGen::GenerateNatureInternal()
 				UStaticMesh* MeshToPick = Meshes[MeshToPickIndex];
 				if (MeshToPick == nullptr) continue;	// if mesh is empty, continue
 
+				//Setting the Square to used
+				RandomSquare.bUsed=true;
+
+				//Setting the squares shading
+				ApplyMeshShade(BiomeNature,SquareCandidateIndexes[NewMeshIndex]);
+				
 				// If HISM was found, add new instance
 				if (UHierarchicalInstancedStaticMeshComponent** HISM_ref = NatureStaticMeshHISM_Correspondence.Find(MeshToPick))
 				{
@@ -193,6 +229,61 @@ void AProceduralTerrainGen::GenerateNatureInternal()
 	}
 }
 
+bool IsInsideCircle(const FVector CircleCenter, const FVector TileLocation, const float CircleRadius)
+{
+	const float Dy = CircleCenter.Y - TileLocation.Y;
+	const float Dx = CircleCenter.X - TileLocation.X;
+	const float DistanceSquared = Dy * Dy + Dx *Dx;
+	const float CircleRadiusSquared = CircleRadius* CircleRadius;
+	return DistanceSquared <= CircleRadiusSquared;
+}
+
+
+void AProceduralTerrainGen::ApplyMeshShade(const FNatureInfo& BiomeNature, const int NatureSquareIndex)
+{
+	int SquareRow;
+	int SquareColumn;
+	CorrectedSquareIndex(NatureSquareIndex,SquareRow,SquareColumn);
+	const FVector CircleLocation = NatureSquares[SquareRow][SquareColumn].CenterLocation;
+	const float SquareSize = NatureSquares[SquareRow][SquareColumn].DistanceFromCenterToEdge*2;
+	
+	if(BiomeNature.ShadingDistance >= SquareSize)
+	{
+		const int BoundingBoxLength =BiomeNature.ShadingDistance / SquareSize;
+		SquareRow -= BoundingBoxLength;
+		SquareColumn -= BoundingBoxLength;
+		for(int Index=0;Index<=BoundingBoxLength+1;Index++)
+		{
+			if(SquareRow <0)
+			{
+				SquareRow++;
+				continue;
+			}
+			if(SquareRow >=NumberOfQuadsPerLine)
+				break;
+			
+			for(int Jedex=0; Jedex<=BoundingBoxLength+1;Jedex++)
+			{
+				if(SquareColumn < 0)
+				{
+					SquareColumn++;
+					continue;
+				}
+				if(SquareColumn>=NumberOfQuadsPerLine)
+				{
+					break;
+				}
+
+				if(IsInsideCircle(CircleLocation,NatureSquares[SquareRow][SquareColumn].CenterLocation,BiomeNature.ShadingDistance))
+					NatureSquares[SquareRow][SquareColumn].bShade=true;
+				SquareColumn++;
+			}
+			SquareColumn-=BoundingBoxLength+2;
+			SquareRow++;
+		}
+	}
+	
+}
 
 void AProceduralTerrainGen::FindConnections(AProceduralTerrainGen* CurrentTerrain) const
 {
@@ -263,31 +354,26 @@ constexpr float GMin_Angle = 0.0f;
 constexpr float GMax_Angle = 359.99f;
 constexpr float PI2 = PI * 2.0f;
 
-FQuat AProceduralTerrainGen::GetBiomeRandomRotation(FRandomStream& RandomNumberGenerator, const FNatureTriangle& Triangle, const FVector& Location) const
+FQuat AProceduralTerrainGen::GetBiomeRandomRotation(const FRandomStream& RandomNumberGenerator, const FNatureSquares& Square, const FVector& Location) const
 {
 	return FRotator(RandomNumberGenerator.FRandRange(GMin_Angle, GMax_Angle), RandomNumberGenerator.FRandRange(GMin_Angle, GMax_Angle), RandomNumberGenerator.FRandRange(GMin_Angle, GMax_Angle)).Quaternion();
 }
 
-FQuat AProceduralTerrainGen::GetRandomYawQuat(const FRandomStream& RandomNumberGenerator)
+FQuat AProceduralTerrainGen::GetRandomYawQuat(const FRandomStream& RandomNumberGenerator) 
 {
 	return FQuat(FVector::UpVector, RandomNumberGenerator.FRandRange(0.0f, PI2));
 }
 
-FQuat AProceduralTerrainGen::GetBiomePlaneShapeRotation( FRandomStream& RandomNumberGenerator, const FNatureTriangle& Triangle, const FVector& Location) const
+FQuat AProceduralTerrainGen::GetBiomePlaneShapeRotation(const FRandomStream& RandomNumberGenerator, const FNatureSquares& Square, const FVector& Location) const
 {
 	return GetRandomYawQuat(RandomNumberGenerator);
-
 }
 
-FQuat AProceduralTerrainGen::GetBiomeMeshSurfaceRotation(FRandomStream& RandomNumberGenerator, const FNatureTriangle& Triangle, const FVector& Location) const
+FQuat AProceduralTerrainGen::GetBiomeMeshSurfaceRotation(const FRandomStream& RandomNumberGenerator, const FNatureSquares& Square, const FVector& Location) const
 {
-	return Triangle.GetSurfaceNormal(); //* GetRandomYawQuat(RandomNumberGenerator);
+	return Square.GetSurfaceNormal() * GetRandomYawQuat(RandomNumberGenerator);
 }
 
-void AProceduralTerrainGen::InitNatureTriangles()
-{
-	NatureTriangles = ProceduralTerrain->GetNatureTriangles();
-}
 
 void AProceduralTerrainGen::HideNature()
 {
@@ -313,9 +399,12 @@ void AProceduralTerrainGen::LoadNature()
 	}
 }
 
-void AProceduralTerrainGen::GetTriangleCandidates(const FVector2D& HeightPercentageRangeToLocateElements, const bool bUseLocationsOutsideHeightRange,
-                                                  const int32 MaxCandidatesToGet, const ENatureBiomes Biome, const FRandomStream& RandomNumberGenerator, TArray<int32>& TriangleCandidateIndexes)
+
+void AProceduralTerrainGen::GetSquareCandidates(const FVector2D& HeightPercentageRangeToLocateElements,
+	const int32 MaxCandidatesToGet, const ENatureBiomes Biome, const FRandomStream& RandomNumberGenerator,
+	TArray<int32>& SquareCandidateIndexes,const bool bCanGrowInShade, const bool bOnlyGrowInShade)
 {
+	
 	//Init the heights that are needed
 	const float WaterHeight = ProceduralWater->WaterHeight-ProceduralWater->OutputScale;
 	const float TerrainHeight = ProceduralWater->OutputScale;
@@ -348,58 +437,67 @@ void AProceduralTerrainGen::GetTriangleCandidates(const FVector2D& HeightPercent
 	const float LowestAllowedHeight = FMath::GetMappedRangeValueClamped(PercentageRange, HeightRange, HeightPercentageRangeToLocateElements.X);
 	const float HighestAllowedHeight = FMath::GetMappedRangeValueClamped(PercentageRange, HeightRange, HeightPercentageRangeToLocateElements.Y);
 	
-	const int32 NumTriangles = NatureTriangles.Num();
-	const int32 LastIndex = NumTriangles - 1;
+	const int32 NumSquares = NatureSquares.Num() * NumberOfQuadsPerLine;
+	const int32 LastIndex = NumSquares - 1;
 
+	//Creating a array of all the possible indexes
+	TArray<int> SquareIndexes = TArray<int>();
+	for (int32 i = 0; i < LastIndex; i++)
+	{
+		SquareIndexes.Add(i);
+	}
 	
 	const bool bHeightCheckNeeded = Biome != ENatureBiomes::Both || HeightPercentageRangeToLocateElements.X != 0.0f || HeightPercentageRangeToLocateElements.Y != 100.0f;
-	for (int32 i = 0; i < NumTriangles; i++)
+	for (int32 i = 0; i < LastIndex; i++)
 	{
+		//Grabbing a random available index and getting that square but also making it so we cant get that index again   
+		const int32 Index = RandomNumberGenerator.RandRange(i,SquareIndexes.Num()-1);
+		if(i != Index)
+			SquareIndexes.Swap(i,Index);
 		
-		// Shuffle current element to randomize order
-		const int32 Index = RandomNumberGenerator.RandRange(i, LastIndex);
-		if (i != Index)
-		{
-			NatureTriangles.Swap(i, Index);
-		}
+		const FNatureSquares& Square = GetNatureSquareAtIndex(SquareIndexes[i]);
 
-		const FNatureTriangle& Tri = NatureTriangles[i];
-
-		if(Tri.IsInUse())
+		if(Square.bUsed)
 		{
 			continue;
 		}
 
+		if(bOnlyGrowInShade)
+		{
+			if(!Square.bShade)
+			{
+				continue;
+			}
+		}
+
+		if(Square.bShade)
+		{
+			if(!bCanGrowInShade)
+			{
+				continue;
+			}
+		}
+		
+
 		// If height check is needed...
 		if (bHeightCheckNeeded)
 		{
-			const bool bIsTriangleInsideHeightRange = Tri.IsInsidePlaneHeightRange(LowestAllowedHeight, HighestAllowedHeight);
-
-			// Refuse candidate if:
-			// - We only have to use locations outside height range AND triangle is inside the range OR Inside earth or water height ranges (needed to avoid locating things in the other biome)
-			// OR
-			// - We only have to use locations inside height range AND triangle is outside the range
-			if ((bUseLocationsOutsideHeightRange && 
-				(
-					bIsTriangleInsideHeightRange ||
-					(Biome == ENatureBiomes::Earth && Tri.IsInsidePlaneHeightRange(LowestTerrainHeight, WaterHeight))||
-					(Biome == ENatureBiomes::Underwater && Tri.IsInsidePlaneHeightRange(WaterHeight, TerrainHeight)))) ||
-					(!bUseLocationsOutsideHeightRange && !bIsTriangleInsideHeightRange))
+			if(!Square.IsInsidePlaneHeightRange(LowestAllowedHeight,HighestAllowedHeight))
 			{
 				continue;
 			}
 		}
 
 		// Add triangle index as a valid candidate
-		TriangleCandidateIndexes.Add(i);
+		SquareCandidateIndexes.Add(SquareIndexes[i]);
 
 		// If we have enough candidates, exit
-		if (TriangleCandidateIndexes.Num() == MaxCandidatesToGet)
+		if (SquareCandidateIndexes.Num() == MaxCandidatesToGet)
 		{
 			break;
 		}
 	}
-
+	
 }
 
 

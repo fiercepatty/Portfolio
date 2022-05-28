@@ -35,9 +35,37 @@ public:
 	UPROPERTY(VisibleAnywhere)
 	UProceduralTerrainComponent* ProceduralTerrain;
 
-	//Used to save off the static meshes when I was doing the test on performance
-	
-	//UStaticMeshComponent* StaticProceduralTerrain;
+	/**Draw the foliage squares using the Foliage Debug settings*/
+	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Foliage Debug Settings")
+	void DrawNatureSquares();
+
+	/**How long the squares are visible for*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Foliage Debug Settings")
+	float DebugDrawTime = 25.0f;
+
+	/**Debug Box Thickness*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Foliage Debug Settings")
+	float DebugBoxThickness =5.0f;
+
+	/**Debug Box Persistent Lines*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Foliage Debug Settings")
+	bool bPersistentLines =false;
+
+	/**Debug Box Depth Priority*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Foliage Debug Settings")
+	int DepthPriority =0;
+
+	/**Color for debug trace if the square is not in the shade or in use*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Foliage Debug Settings")
+	FColor ColorNoFoliageOrShade =FColor::Red;
+
+	/**Color for debug trace if the square is in the shade*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Foliage Debug Settings")
+	FColor ColorInShade =FColor::Black;
+
+	/**Color for debug trace if the square is in use*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Foliage Debug Settings")
+	FColor ColorInUse =FColor::Blue;
 
 	//This is what actually create the mesh for the water that is attached to it
 	UPROPERTY(VisibleAnywhere)
@@ -130,28 +158,54 @@ private:
 
 	//Saved off of all the Biome Foliage options for generating terrain
 	TArray<FNatureInfo> BiomeFoliage;
+	
 
-	//All the Triangles in the terrain mesh that a foliage object could be spawned on
-	TArray<FNatureTriangle> NatureTriangles;
+	//All the Squares in the terrain mesh for the foliage object to spawn
+	TArray<TArray<FNatureSquares>> NatureSquares;
+	
 
 	// Function pointers declaration
-	typedef bool (FNatureTriangle::* IsInsideHeightRangeFuncPtr)(const float LowerHeight, const float HigherHeight) const;
-	typedef FQuat(AProceduralTerrainGen::* GetBiomeRotationFuncPtr)(FRandomStream&, const FNatureTriangle&, const FVector&) const;
+	typedef FQuat(AProceduralTerrainGen::* GetBiomeRotationFuncPtr)(const FRandomStream&, const FNatureSquares&, const FVector&) const;
 
 	//The different functions used for the function pointers
-	FQuat GetBiomeRandomRotation(FRandomStream& RandomNumberGenerator, const FNatureTriangle& Triangle, const FVector& Location) const;
+	FQuat GetBiomeRandomRotation(const FRandomStream& RandomNumberGenerator, const FNatureSquares& Square, const FVector& Location) const;
 	static FQuat GetRandomYawQuat(const FRandomStream& RandomNumberGenerator);
-	FQuat GetBiomePlaneShapeRotation( FRandomStream& RandomNumberGenerator, const FNatureTriangle& Triangle, const FVector& Location) const;
-	FQuat GetBiomeMeshSurfaceRotation(FRandomStream& RandomNumberGenerator, const FNatureTriangle& Triangle, const FVector& Location) const;
+	FQuat GetBiomePlaneShapeRotation(const  FRandomStream& RandomNumberGenerator, const FNatureSquares& Square, const FVector& Location) const;
+	FQuat GetBiomeMeshSurfaceRotation(const FRandomStream& RandomNumberGenerator, const FNatureSquares& Square, const FVector& Location) const;
 
-	//internal function used to setup all the nature triangles that are used when generating the foliage
-	void InitNatureTriangles();
+	int NumberOfQuadsPerLine = 0;
 
-	//Get the Candidates for the foliage to spawn on from the height parameters given
-	void GetTriangleCandidates(const FVector2D& HeightPercentageRangeToLocateElements,const bool bUseLocationsOutsideHeightRange,
-		const int32 MaxCandidatesToGet,const ENatureBiomes Biome, const FRandomStream& RandomNumberGenerator,TArray<int32>& TriangleCandidateIndexes);
+    /**
+    *Reference - https://www.redblobgames.com/grids/circle-drawing/
+    */
+	void ApplyMeshShade(const FNatureInfo& BiomeNature, int NatureSquareIndex);
+
+	//Internal Function used to setup all the nature squares
+	inline void InitNatureSquares()
+	{
+		NatureSquares = ProceduralTerrain->GetNatureSquares();
+		NumberOfQuadsPerLine = ProceduralTerrain->NoiseSamplesPerLine-1;
+	}
+
+	inline FNatureSquares& GetNatureSquareAtIndex(const int Index)
+	{
+		const int OuterIndex = Index / NumberOfQuadsPerLine;
+		const int InnerIndex = Index - (OuterIndex*NumberOfQuadsPerLine);
+		return NatureSquares[OuterIndex][InnerIndex];
+	}
+
+	inline void CorrectedSquareIndex(const int Index, int& OuterIndex, int&InnerIndex) const
+	{
+		OuterIndex = Index / NumberOfQuadsPerLine;
+		InnerIndex = Index - (OuterIndex*NumberOfQuadsPerLine);
+	}
+	
+
+	void GetSquareCandidates(const FVector2D& HeightPercentageRangeToLocateElements,
+		const int32 MaxCandidatesToGet,const ENatureBiomes Biome, const FRandomStream& RandomNumberGenerator,TArray<int32>& SquareCandidateIndexes,const bool bCanGrowInShade, const bool bOnlyGrowInShade);
 
 };
+
 
 
 

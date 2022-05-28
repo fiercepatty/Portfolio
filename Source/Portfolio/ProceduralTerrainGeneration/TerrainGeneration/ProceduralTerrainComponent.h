@@ -89,9 +89,15 @@ public:
 	UStaticMesh* CreateStaticMesh() const;
 
 	//Getter for the Vertices of he terrain;
-	inline TArray<FNatureTriangle> GetNatureTriangles()
+	//inline TArray<FNatureTriangle> GetNatureTriangles()
+	//{
+	//	return NatureTriangles;
+	//}
+
+	//Getter for the Nature Squares for the foliage calculation
+	inline TArray<TArray<FNatureSquares>> GetNatureSquares() const
 	{
-		return NatureTriangles;
+		return NatureSquares;
 	}
 
 
@@ -107,11 +113,10 @@ private:
 
 	//All the triangles of the terrain
 	TArray<int> Triangles;
-
-	//Array of all the nature triangles in the terrain
-	TArray<FNatureTriangle> NatureTriangles;
-
 	
+
+	//Array of all the nature squares in the terrain seperated in rows
+	TArray<TArray<FNatureSquares>> NatureSquares;
 
 	//Internal function used create the mesh description needed to create a static mesh. Used the procedural mesh component function for converting a procedural mesh to static mesh but removed the prompt to name the mesh
 	static FMeshDescription BuildANewMeshDescription(UProceduralMeshComponent* ProcMeshComp );
