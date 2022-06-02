@@ -1,5 +1,6 @@
 #pragma once
 #include "FastNoiseWrapper.h"
+#include "ProceduralActorParent.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "TerrainStructInfo.generated.h"
 
@@ -32,14 +33,23 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties")
 	ENatureBiomes CorrespondingBiome;
 
-	/** Distance (in centimeters) from camera at which each generated instance fades out. A value of 0 means infinite. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (ClampMin = 0, UIMin = 0))
-	int32 CullDistance;
-
-	/** Array of meshes used to randomly pick each time it adds a nature mesh in the biome. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties")
+	bool bSpawnBlueprintClass = false;
+	
+	
+	/** Array of meshes used to randomly pick each time it adds a nature mesh in the biome. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (EditCondition="!bSpawnBlueprintClass", EditConditionHides))
 	TArray<UStaticMesh*> Meshes;
 
+	/** Class to spawn in if chosen to spawn in a blueprint instead of random meshes*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (EditCondition="bSpawnBlueprintClass",EditConditionHides))
+	TArray<TSubclassOf<AProceduralActorParent>> SpawningActorClasses;
+	
+
+	/** Distance (in centimeters) from camera at which each generated instance fades out. A value of 0 means infinite. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties", meta = (ClampMin = 0, UIMin = 0, EditCondition="!bSpawnBlueprintClass", EditConditionHides))
+	int32 CullDistance;
+	
 	/** Minimum nature meshes that will be added on the corresponding biome. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties")
 	int32 MinMeshesToSpawn;

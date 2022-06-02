@@ -21,6 +21,8 @@ public:
 	// Sets default values for this actor's properties
 	AProceduralTerrainGen();
 
+
+	void DestroyAllAttachedActors();
 	
 	//Boolean for when the manager is destroying all of the planes we dont want it to try to destroy something twice so this is used to prevent it from adding something in the array twice
 	bool bGettingDestroyed=false;
@@ -145,6 +147,10 @@ private:
 	UPROPERTY()
 	TMap<UStaticMesh*, UHierarchicalInstancedStaticMeshComponent*> NatureStaticMeshHISM_Correspondence;
 
+	/**All the Actors Attached to the Terrain*/
+	UPROPERTY()
+	TArray<AProceduralActorParent*> AllProceduralActors;
+
 	/**
 	 * Boolean controls whether or not we generate nature with our terrain
 	 */
@@ -194,7 +200,6 @@ private:
 		InnerIndex = Index - (OuterIndex*NumberOfQuadsPerLine);
 	}
 	
-
 	void GetSquareCandidates(const FVector2D& HeightPercentageRangeToLocateElements,
 		const int32 MaxCandidatesToGet,const ENatureBiomes Biome, const FRandomStream& RandomNumberGenerator,TArray<int32>& SquareCandidateIndexes,const bool bCanGrowInShade, const bool bOnlyGrowInShade);
 

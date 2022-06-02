@@ -46,8 +46,18 @@ ATP_ThirdPersonCharacter::ATP_ThirdPersonCharacter()
 	//Init the component and the component handles the rest
 	ProceduralPlayerComponent=CreateDefaultSubobject<UProceduralPlayerComponent>(TEXT("Procedural Mesh Component"));
 	ProceduralPlayerComponent->PlayerTriggerBox->AttachToComponent(GetCapsuleComponent(),FAttachmentTransformRules::KeepRelativeTransform);
+
+	ProceduralPlayerInventory=CreateDefaultSubobject<UProceduralInventory>(TEXT("Player Inventory"));
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named MyCharacter (to avoid direct content references in C++)
+
+	if(!AttackCollision)
+	{
+		AttackCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("Attack Collision"));
+		AttackCollision->AttachToComponent(GetMesh(),FAttachmentTransformRules::KeepRelativeTransform);
+		AttackCollision->OnComponentBeginOverlap.AddDynamic(this,&ATP_ThirdPersonCharacter::PlayerBeginOverlap);
+		AttackCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -59,6 +69,9 @@ void ATP_ThirdPersonCharacter::SetupPlayerInputComponent(class UInputComponent* 
 	check(PlayerInputComponent);
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
+
+	PlayerInputComponent->BindAction("Attack", IE_Released, this, &ATP_ThirdPersonCharacter::OnAttack);
+
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &ATP_ThirdPersonCharacter::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &ATP_ThirdPersonCharacter::MoveRight);
@@ -79,10 +92,51 @@ void ATP_ThirdPersonCharacter::SetupPlayerInputComponent(class UInputComponent* 
 	PlayerInputComponent->BindAction("ResetVR", IE_Pressed, this, &ATP_ThirdPersonCharacter::OnResetVR);
 }
 
+void ATP_ThirdPersonCharacter::OnAttack()
+{
+	if(Montage)
+	{
+		if(!GetMesh()->GetAnimInstance()->Montage_IsPlaying(Montage))
+		{
+			AttackCollision->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+			bAttackCollisionEnabled=true;
+			PlayAnimMontage(Montage);
+		}
+	}
+}
+
+void ATP_ThirdPersonCharacter::PlayerBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,
+	UPrimitiveComponent* OtherComponent, int32 OtherBoxIndex, bool FromSweep, const FHitResult& SweepResult)
+{
+	
+	AProceduralResourceParent* Resource = Cast<AProceduralResourceParent>(OtherActor);
+	if(Resource)
+	{
+		ProceduralPlayerInventory->AddResourceToInventory(Resource,Resource->HitResource(1,1));
+	}
+	
+}
+
 void ATP_ThirdPersonCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 	
+}
+
+void ATP_ThirdPersonCharacter::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+	if(bAttackCollisionEnabled)
+	{
+		if(Montage)
+		{
+			if(!GetMesh()->GetAnimInstance()->Montage_IsPlaying(Montage))
+			{
+				AttackCollision->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+				bAttackCollisionEnabled=false;
+			}
+		}
+	}
 }
 
 void ATP_ThirdPersonCharacter::OnResetVR()

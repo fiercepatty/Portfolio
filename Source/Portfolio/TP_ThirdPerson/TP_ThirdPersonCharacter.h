@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ProceduralInventory.h"
 #include "ProceduralPlayerComponent.h"
 #include "GameFramework/Character.h"
 #include "TP_ThirdPersonCharacter.generated.h"
@@ -35,10 +36,20 @@ public:
 	UPROPERTY(EditAnywhere,BlueprintReadWrite)
 	UProceduralPlayerComponent* ProceduralPlayerComponent;
 
+	/**Attaching our player component that handles moving the map*/
+	UPROPERTY(EditAnywhere,BlueprintReadWrite)
+	UProceduralInventory* ProceduralPlayerInventory;
 
+	UFUNCTION()
+	void PlayerBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor,UPrimitiveComponent* OtherComponent, int32 OtherBoxIndex, bool FromSweep, const FHitResult& SweepResult);
+
+	
 	virtual void BeginPlay() override;
 
+	virtual void Tick(float DeltaSeconds) override;
+
 protected:
+	bool bAttackCollisionEnabled=false;
 
 	/** Resets HMD orientation in VR. */
 	void OnResetVR();
@@ -71,6 +82,14 @@ protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	// End of APawn interface
+
+	UPROPERTY(BlueprintReadWrite,EditAnywhere,Category="Animation",meta = (AllowProtectedAccess=true))
+	UAnimMontage* Montage;
+
+	UPROPERTY(BlueprintReadWrite,EditAnywhere,Category="BoxCollison",meta = (AllowProtectedAccess=true))
+	UBoxComponent* AttackCollision;
+
+	void OnAttack();
 
 public:
 	/** Returns CameraBoom subobject **/

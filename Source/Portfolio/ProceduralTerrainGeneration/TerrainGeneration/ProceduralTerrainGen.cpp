@@ -6,6 +6,7 @@
 
 #include "DrawDebugHelpers.h"
 #include "ProceduralFoliageSpawner.h"
+#include "ProceduralResourceParent.h"
 #include "Foliage/Public/ProceduralFoliageComponent.h"
 
 // Sets default values
@@ -34,6 +35,15 @@ AProceduralTerrainGen::AProceduralTerrainGen()
 	TerrainTriggerBox->SetCollisionProfileName(FName(TEXT("Trigger")));
 	TerrainTriggerBox->SetGenerateOverlapEvents(true);
 
+}
+
+void AProceduralTerrainGen::DestroyAllAttachedActors()
+{
+	for (AProceduralActorParent* ProceduralActor : AllProceduralActors)
+	{
+		if(ProceduralActor)
+			ProceduralActor->Destroy();
+	}
 }
 
 
@@ -87,8 +97,18 @@ void AProceduralTerrainGen::GenerateNatureInternal()
 	
 		for(const FNatureInfo& BiomeNature :  BiomeFoliage)
 		{
+			uint32 NumMeshes;
+			
+			if(BiomeNature.bSpawnBlueprintClass)
+			{
+				NumMeshes = BiomeNature.SpawningActorClasses.Num();
+			}
+			else
+			{
+				NumMeshes = BiomeNature.Meshes.Num();
+			}
 			//Check to see if we are spawning in any meshes 
-			const uint32 NumMeshes = BiomeNature.Meshes.Num();
+			
 			if(NumMeshes ==0) continue;
 
 			//Create the seed for our number stream
@@ -141,7 +161,7 @@ void AProceduralTerrainGen::GenerateNatureInternal()
 			}
 
 			
-			const uint32 NumBiomeMeshesLessOne = NumMeshes - 1;
+			const uint32 NumMeshesLessOne = NumMeshes - 1;
 			const uint32 NumSquareCandidatesLessOne = NumSquareCandidates - 1;
 			const float MinScale = BiomeNature.MinMaxScale.X;
 			const float MaxScale = BiomeNature.MinMaxScale.Y;
@@ -188,41 +208,74 @@ void AProceduralTerrainGen::GenerateNatureInternal()
 				MeshTransform.SetScale3D(FVector(RandomScale, RandomScale, RandomScale));
 
 				// Pick a random mesh from the array
-				const int32 MeshToPickIndex = RandomNumberGenerator.RandRange(0, NumBiomeMeshesLessOne);
-				UStaticMesh* MeshToPick = Meshes[MeshToPickIndex];
-				if (MeshToPick == nullptr) continue;	// if mesh is empty, continue
-
-				//Setting the Square to used
-				RandomSquare.bUsed=true;
-
-				//Setting the squares shading
-				ApplyMeshShade(BiomeNature,SquareCandidateIndexes[NewMeshIndex]);
+				const int32 MeshToPickIndex = RandomNumberGenerator.RandRange(0, NumMeshesLessOne);
 				
-				// If HISM was found, add new instance
-				if (UHierarchicalInstancedStaticMeshComponent** HISM_ref = NatureStaticMeshHISM_Correspondence.Find(MeshToPick))
+				//If we are spawning in a actor class
+				if(BiomeNature.bSpawnBlueprintClass)
 				{
-					(*HISM_ref)->AddInstance(MeshTransform);
+					//Pick the actor class and if successful try to spawn in
+					TSubclassOf<AProceduralActorParent> ActorToPick = BiomeNature.SpawningActorClasses[MeshToPickIndex];
+					if(ActorToPick == nullptr)	continue;
+
+					MeshTransform.SetLocation(MeshTransform.GetLocation()+GetActorLocation());
+					
+					FActorSpawnParameters SpawnParams;
+					SpawnParams.Owner=this;
+					SpawnParams.Instigator = GetInstigator();
+					
+					AProceduralActorParent* SpawnedActor = GetWorld()->SpawnActor<AProceduralActorParent>(ActorToPick,MeshTransform,SpawnParams);
+
+					//IF successfully spawned actor add into array of all procedural actors and do the shading required for the actor
+					if(SpawnedActor)
+					{
+						AllProceduralActors.Push(SpawnedActor);
+
+						//Setting the Square to used
+						RandomSquare.bUsed=true;
+
+						//Setting the squares shading
+						ApplyMeshShade(BiomeNature,SquareCandidateIndexes[NewMeshIndex]);
+					}
+
 				}
-				// If there is no corresponding HISM component, create one and store it
-				else if (UHierarchicalInstancedStaticMeshComponent* HISM = NewObject<UHierarchicalInstancedStaticMeshComponent>(this))
+				else
 				{
-					// The property documentation says that this should be enabled only for small objects without collision, and that's not the case, so we disable it
-					HISM->bUseDefaultCollision=1;
-					HISM->bEnableDensityScaling = 0;	// false
-					HISM->SetStaticMesh(MeshToPick);
-					HISM->SetEnableGravity(false);
-					HISM->bApplyImpulseOnDamage = false;
-					HISM->SetGenerateOverlapEvents(false);
-					HISM->SetCullDistances(0, CullDistance);
-					HISM->SetMobility(EComponentMobility::Movable);
-					HISM->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
-					HISM->RegisterComponent();
+					
+					UStaticMesh* MeshToPick = Meshes[MeshToPickIndex];
+					if (MeshToPick == nullptr) continue;	// if mesh is empty, continue
 
-					// Add the new HISM to the map
-					NatureStaticMeshHISM_Correspondence.Emplace(MeshToPick, HISM);
+					//Setting the Square to used
+					RandomSquare.bUsed=true;
 
-					// Finally, add instance
-					HISM->AddInstance(MeshTransform);
+					//Setting the squares shading
+					ApplyMeshShade(BiomeNature,SquareCandidateIndexes[NewMeshIndex]);
+				
+					// If HISM was found, add new instance
+					if (UHierarchicalInstancedStaticMeshComponent** HISM_ref = NatureStaticMeshHISM_Correspondence.Find(MeshToPick))
+					{
+						(*HISM_ref)->AddInstance(MeshTransform);
+					}
+					// If there is no corresponding HISM component, create one and store it
+					else if (UHierarchicalInstancedStaticMeshComponent* HISM = NewObject<UHierarchicalInstancedStaticMeshComponent>(this))
+					{
+						// The property documentation says that this should be enabled only for small objects without collision, and that's not the case, so we disable it
+						HISM->bUseDefaultCollision=1;
+						HISM->bEnableDensityScaling = 0;	// false
+						HISM->SetStaticMesh(MeshToPick);
+						HISM->SetEnableGravity(false);
+						HISM->bApplyImpulseOnDamage = false;
+						HISM->SetGenerateOverlapEvents(false);
+						HISM->SetCullDistances(0, CullDistance);
+						HISM->SetMobility(EComponentMobility::Movable);
+						HISM->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+						HISM->RegisterComponent();
+
+						// Add the new HISM to the map
+						NatureStaticMeshHISM_Correspondence.Emplace(MeshToPick, HISM);
+
+						// Finally, add instance
+						HISM->AddInstance(MeshTransform);
+					}
 				}
 			}
 			
@@ -253,7 +306,7 @@ void AProceduralTerrainGen::ApplyMeshShade(const FNatureInfo& BiomeNature, const
 		const int BoundingBoxLength =BiomeNature.ShadingDistance / SquareSize;
 		SquareRow -= BoundingBoxLength;
 		SquareColumn -= BoundingBoxLength;
-		for(int Index=0;Index<=BoundingBoxLength+1;Index++)
+		for(int Index=0;Index<=BoundingBoxLength*2+1;Index++)
 		{
 			if(SquareRow <0)
 			{
@@ -263,7 +316,7 @@ void AProceduralTerrainGen::ApplyMeshShade(const FNatureInfo& BiomeNature, const
 			if(SquareRow >=NumberOfQuadsPerLine)
 				break;
 			
-			for(int Jedex=0; Jedex<=BoundingBoxLength+1;Jedex++)
+			for(int Jedex=0; Jedex<=BoundingBoxLength*2+1;Jedex++)
 			{
 				if(SquareColumn < 0)
 				{
@@ -279,7 +332,7 @@ void AProceduralTerrainGen::ApplyMeshShade(const FNatureInfo& BiomeNature, const
 					NatureSquares[SquareRow][SquareColumn].bShade=true;
 				SquareColumn++;
 			}
-			SquareColumn-=BoundingBoxLength+2;
+			SquareColumn-=BoundingBoxLength*2+2;
 			SquareRow++;
 		}
 	}
@@ -386,6 +439,14 @@ void AProceduralTerrainGen::HideNature()
 			HISM->SetVisibility(false);
 		}
 	}
+	for (AProceduralActorParent* ProceduralActor : AllProceduralActors)
+	{
+		AProceduralResourceParent* Resource = Cast<AProceduralResourceParent>(ProceduralActor);
+		if(Resource)
+		{
+			Resource->SetVisibility(false);
+		}
+	}
 }
 
 void AProceduralTerrainGen::LoadNature()
@@ -396,6 +457,14 @@ void AProceduralTerrainGen::LoadNature()
 		if (UHierarchicalInstancedStaticMeshComponent* HISM = Elem.Value)
 		{
 			HISM->SetVisibility(true);
+		}
+	}
+	for (AProceduralActorParent* ProceduralActor : AllProceduralActors)
+	{
+		AProceduralResourceParent* Resource = Cast<AProceduralResourceParent>(ProceduralActor);
+		if(Resource)
+		{
+			Resource->SetVisibility(true);
 		}
 	}
 }

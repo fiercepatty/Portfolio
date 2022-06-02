@@ -29,6 +29,9 @@ public:
 	/**Every Tick check to see if we need to be destroyed*/
 	virtual void Tick(float DeltaSeconds) override;
 
+	/**Set the visiblity of the static mesh*/
+	void SetVisibility(bool NewVisibility) const;
+	
 	
 
 protected:
@@ -64,7 +67,7 @@ protected:
 	 * Starting Static Mesh when Spawned in
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Actor | Resource", meta=(AllowProtectedAccess =true))
-	UInstancedStaticMeshComponent* ResourceStaticMesh = nullptr;	
+	UStaticMeshComponent* ResourceStaticMesh = nullptr;	
 	
 
 	/**

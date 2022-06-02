@@ -172,6 +172,7 @@ void ATerrainManager::RemoveAllPlanes()
 		Origin->SouthTerrainGenerated->bGettingDestroyed=true;
 
 		//Get rid of the origin we dont need it anymore
+		Origin->DestroyAllAttachedActors();
 		Origin->Destroy();
 		while(NeedDelete.Num()!=0)
 		{
@@ -201,6 +202,7 @@ void ATerrainManager::RemoveAllPlanes()
 					NeedDelete.Add(Current->WestTerrainGenerated);
 					Current->WestTerrainGenerated->bGettingDestroyed=true;
 				}
+				Current->DestroyAllAttachedActors();
 				Current->Destroy();
 			}
 			NeedDelete.Shrink();

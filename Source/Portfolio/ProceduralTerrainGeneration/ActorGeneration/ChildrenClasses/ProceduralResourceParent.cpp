@@ -5,7 +5,7 @@
 
 AProceduralResourceParent::AProceduralResourceParent()
 {
-	ResourceStaticMesh= CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("ResourceStaticMesh"));
+	ResourceStaticMesh= CreateDefaultSubobject<UStaticMeshComponent>(TEXT("ResourceStaticMesh"));
 }
 
 float AProceduralResourceParent::HitResource(float DamageAmount, float MiningEffectiveness)
@@ -21,6 +21,11 @@ void AProceduralResourceParent::Tick(float DeltaSeconds)
 	{
 		Destroy();
 	}
+}
+
+void AProceduralResourceParent::SetVisibility(const bool NewVisibility) const
+{
+	ResourceStaticMesh->SetVisibility(NewVisibility);
 }
 
 void AProceduralResourceParent::UpdateHealthMesh()
