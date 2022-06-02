@@ -64,6 +64,9 @@ public:
 
 	//How large the output the Terrain will be. This will be doubled so there will be 4000 units used its just half will be in negative space
 	float FastNoiseOutputScale = 2000;
+
+	//Height Offset for terrain to change water percentage for a biome
+	float WaterHeightOffset = 0;
 	
 	//Saved off to know how many triangles there are per line of the square and how many lines there are for the square
 	//This is subtracted by one everywhere to get the correct amount
@@ -77,22 +80,15 @@ public:
 	UPROPERTY()
 	TArray<UFastNoiseWrapper*> ConnectionNoises;
 
+	
+
 	//How many vertices there are in the terrain
 	int VerticesArraySize = NoiseSamplesPerLine * NoiseSamplesPerLine;
 
 	/**This is the actual mesh that is created when generating meshes*/
 	UPROPERTY(VisibleAnywhere)
 	UProceduralMeshComponent* ProceduralTerrainMesh;
-
-	//Function used to create a static mesh based off of the actual procedural mesh. Made to test the performance between using static meshes and using an actual procedural mesh
-	//Found out the static meshes did not create much of a benefit how ever the meshes did make me save off all the static meshes that were created without a real way of destroying them after runtime
-	UStaticMesh* CreateStaticMesh() const;
-
-	//Getter for the Vertices of he terrain;
-	//inline TArray<FNatureTriangle> GetNatureTriangles()
-	//{
-	//	return NatureTriangles;
-	//}
+	
 
 	//Getter for the Nature Squares for the foliage calculation
 	inline TArray<TArray<FNatureSquares>> GetNatureSquares() const
@@ -113,15 +109,19 @@ private:
 
 	//All the triangles of the terrain
 	TArray<int> Triangles;
-	
+
+	float EvaluateConnectionNoiseAtIndex(int Index, int X, int Y) const;
+
+	/**All the connections output sizes for the terrain so that averaging world out correctly*/
+	TArray<float> ConnectionNoiseOutputSizes = TArray<float>();
+
+	/**All the connections output sizes for the terrain so that averaging world out correctly*/
+	TArray<float> ConnectionNoiseWaterHeightOffset = TArray<float>();
 
 	//Array of all the nature squares in the terrain seperated in rows
 	TArray<TArray<FNatureSquares>> NatureSquares;
 
-	//Internal function used create the mesh description needed to create a static mesh. Used the procedural mesh component function for converting a procedural mesh to static mesh but removed the prompt to name the mesh
-	static FMeshDescription BuildANewMeshDescription(UProceduralMeshComponent* ProcMeshComp );
-
-
+	/**Material applied to the terrain*/
 	UMaterialInstance* Mat=nullptr;
 
 	//Internal Function used to generate all the vertices of the Terrain and the UVs for the mesh

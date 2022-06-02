@@ -163,6 +163,19 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Noise Settings")
 	float NoiseOutputScale = 2000;
 
+	/**
+	 * Water Percentage changed is how much you want the water percentage to change for a given biome. Positive Numbers will add more water while negative numbers will subtract water.
+	 * For Example if the Water Percentage is 5 and you want it to be 10 set this number to 5 and it will offset the terrain to have a water percentage of 10.
+	 * So if we have a terrain where the lowest point is 0 and highest point is 1000 5 percent water would mean that the water height is 50
+	 * Putting 5 here would offset all the terrain in the world by -50 to make up for the water percentage that is desired without moving the actual water percentage to make it so all the water lines up for generation
+	 * @Warning making the offset change the water percentage below 0 will create very weird and unpredictable results same will offsetting it above 100
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Noise Settings", meta = (ClampMin=-100,ClampMax=100))
+	float WaterPercentageOffset = 0;
+
+	//Internally Calculated so that once and saved off
+	float WaterHeightOffset =0;
+	
 	/**How the noise is calculated the algorithm that is used*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Noise Settings")
 	EFastNoise_NoiseType NoiseType = EFastNoise_NoiseType::Simplex;
@@ -227,33 +240,12 @@ public:
 	/** Array of different meshes per biome */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Noise Settings")
 	TArray<FNatureInfo> BiomeNatures;
-};
 
+	//Water Percentage set in manager but not accessible inside struct
+	float WaterPercentage = 10;
 
-USTRUCT(BlueprintType)
-struct FWaterInfo
-{
-	GENERATED_USTRUCT_BODY()
-
-	FWaterInfo()        
-	{
-		
-	}
-
-public:
-	/**The waters resolution so the larger this number is the less triangles it will be to create the water mesh but make sure this number is divisible by the TotalSizeToGenerate in the Manager*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Noise Settings")
-	int NoiseResolution = 300;
-
-	//Saved off for how large the terrain is
-	int TotalSizeToGenerate = 1200;
-	
-	/**At this Height Water will be generated at. So everything below this would be underwater. Keep this value lower than the NoiseOutputHeight so that there is land*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Noise Settings")
-	float WaterHeight = 300;
-
-	/**How tall the highest point and smallest point will be from one another*/
-	float NoiseOutputScale = 2000;
+	//Water height Used when creating water
+	float WaterHeight = 0;
 
 	/**
 	 * Material used for the water
@@ -261,8 +253,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Noise Settings")
 	UMaterialInstance* WaterMaterial=nullptr;
 
-
-	
+	/**
+	 * Decides whether or not the water has collision or not
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrian Generation | Noise Settings")
+	bool bWaterHasCollision=false;
 	
 };
 

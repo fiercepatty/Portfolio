@@ -3,18 +3,25 @@
 
 #include "TerrainManager.h"
 
+#include "NavigationSystem.h"
 
 // Sets default values
 ATerrainManager::ATerrainManager()
 {
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
-	BiomeNoise=CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("Noise"));
+	
+	if(!BiomeNoise)
+		BiomeNoise=CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("Noise"));
 	
 }
 
+
+
 void ATerrainManager::InitBiomeNoise() const
 {
+	
+	if(BiomeNoise)
 	BiomeNoise->SetupFastNoise(BiomeOptions.NoiseType, BiomeOptions.Seed, BiomeOptions.Frequency, BiomeOptions.Interp, BiomeOptions.FractalType,
 				BiomeOptions.Octaves,BiomeOptions.Lacunarity,BiomeOptions.Gain,BiomeOptions.CellularJitter, BiomeOptions.CellularDistanceFunction, BiomeOptions.CellularReturnType);
 }
@@ -48,15 +55,31 @@ void ATerrainManager::GeneratePlane()
 	//Setup the biome noise so we can determine what terrain we have
 	InitBiomeNoise();
 
+	
+
 	//Setting up parameters in the terrain noise that needs to be the same for all terrains
 	for (int I=0;I<AllTerrainOptions.Num();I++)
 	{
 		AllTerrainOptions[I].NoiseResolution=NoiseResolution;
 		AllTerrainOptions[I].TotalSizeToGenerate=TotalSizeToGenerate;
 		AllTerrainOptions[I].bAverageTerrainConnections=bAverageConnection;
+
+		const FVector2D PercentageRange = FVector2D(0,100.0f);
+		WaterHeight = FMath::GetMappedRangeValueClamped(PercentageRange, WaterHeightRange, WaterPercentage);
+
+		AllTerrainOptions[I].WaterHeight = WaterHeight;
+		AllTerrainOptions[I].WaterPercentage = WaterPercentage;
+
+		if(AllTerrainOptions[I].WaterPercentageOffset == 0)
+		{
+			AllTerrainOptions[I].WaterHeightOffset =0;
+		}
+		else
+		{
+			const FVector2D PercentageRangeOffset = FVector2D(-100,100.0f);
+			AllTerrainOptions[I].WaterHeightOffset = -FMath::GetMappedRangeValueClamped(PercentageRangeOffset, WaterHeightRange, AllTerrainOptions[I].WaterPercentageOffset);
+		}
 	}
-	//Telling the water how much to generate
-	WaterOptions.TotalSizeToGenerate=TotalSizeToGenerate;
 	
 	//Get rid of any planes we have at the moment
 	RemoveAllPlanes();
@@ -96,11 +119,41 @@ void ATerrainManager::GeneratePlane()
 	{
 		GenerateSquareLayer();
 	}
+
+	FVector Location = GetActorLocation();
+	const float CenterAmount = (TotalSizeToGenerate-NoiseResolution) / 2;
+	Location.X += CenterAmount;
+	Location.Y += CenterAmount;
+	const float RelativeSize = TotalSizeToGenerate * (VisibleRange*2 + 1) * 0.005;
+	if(BlockingWaterLevelVolume)
+	{
+		BlockingWaterLevelVolume->GetRootComponent()->SetMobility(EComponentMobility::Stationary);
+		
+		BlockingWaterLevelVolume->SetActorLocation(FVector(Location.X,Location.Y,Location.Z+WaterHeight + BlockingWaterOffset));
+		
+		BlockingWaterLevelVolume->SetActorRelativeScale3D(FVector(RelativeSize,RelativeSize,BlockingWaterSize));
+		BlockingWaterLevelVolume->GetRootComponent()->UpdateBounds();
+
+		BlockingWaterLevelVolume->GetRootComponent()->SetMobility(EComponentMobility::Static);
+	}
+	if(NavMeshBoundsVolume)
+	{
+		NavMeshBoundsVolume->GetRootComponent()->SetMobility(EComponentMobility::Stationary);
+		
+		NavMeshBoundsVolume->SetActorLocation(Location);
+		NavMeshBoundsVolume->SetActorRelativeScale3D(FVector(RelativeSize,RelativeSize,RelativeSize/2));
+		NavMeshBoundsVolume->GetRootComponent()->UpdateBounds();
+
+		NavMeshBoundsVolume->GetRootComponent()->SetMobility(EComponentMobility::Static);
+
+		UNavigationSystemV1::GetCurrent(GetWorld())->OnNavigationBoundsUpdated(NavMeshBoundsVolume);
+	}
 }
 
 
 void ATerrainManager::RemoveAllPlanes()
 {
+	
 	//If we dont have a origin then there are no planes attached to this manager
 	if(Origin)
 	{
@@ -168,6 +221,7 @@ void ATerrainManager::BeginPlay()
 	Super::BeginPlay();
 	//Just creating the world
 	GeneratePlane();
+
 }
 
 FVector ATerrainManager::UpdateNoiseSamplingLocation(const FVector StartLocation, const EDirection Dir) const
@@ -242,14 +296,8 @@ AProceduralTerrainGen* ATerrainManager::SpawnTerrain(const FVector Location,FVec
 	const int Num =	SelectedBiome(TerrainGen->NoiseComponentStartLocation);
 	const TArray<FTerrainInfo> Connections = FindConnectedTerrains(TerrainGen);
 
-	if(WaterOptions.WaterHeight >= 0)
-	{
-		TerrainGen->InitializeVariable(AllTerrainOptions[Num],Connections,WaterOptions);
-	}
-	else
-	{
-		TerrainGen->InitializeVariable(AllTerrainOptions[Num],Connections);
-	}
+	TerrainGen->InitializeVariable(AllTerrainOptions[Num],Connections);
+	
 	return TerrainGen;
 }
 
@@ -261,18 +309,17 @@ AProceduralTerrainGen* ATerrainManager::SpawnTerrain(FVector Location)
 	SpawnParams.Instigator = GetInstigator();
 	
 	AProceduralTerrainGen* TerrainGen = GetWorld()->SpawnActor<AProceduralTerrainGen>(Location,GetActorRotation(),SpawnParams);
-	const int Num =	SelectedBiome(TerrainGen->NoiseComponentStartLocation);
+	
+	const int Num =	SelectedBiome(SampleNoiseStartLocation);
 	const TArray<FTerrainInfo> Connections = FindConnectedTerrains(TerrainGen);
 
-	if(WaterOptions.WaterHeight >= 0)
-	{
-		TerrainGen->InitializeVariable(AllTerrainOptions[Num],Connections,WaterOptions);
-	}
-	else
-	{
-		TerrainGen->InitializeVariable(AllTerrainOptions[Num],Connections);
-	}
+
+	TerrainGen->InitializeVariable(AllTerrainOptions[Num],Connections);
+
+	
 	return TerrainGen;
+	
+	
 }
 TArray<FTerrainInfo> ATerrainManager::FindConnectedTerrains(const AProceduralTerrainGen* CurrentTerrain)
 {

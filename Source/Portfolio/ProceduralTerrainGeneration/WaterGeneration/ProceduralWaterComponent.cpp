@@ -12,6 +12,7 @@ UProceduralWaterComponent::UProceduralWaterComponent()
 
 	//Procedural Mesh
 	ProceduralWaterMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("ProceduralWaterMesh"));
+	
 	// ...
 }
 
@@ -35,26 +36,32 @@ void UProceduralWaterComponent::GenerateMap(const FVector StartingLocation)
 	GenerateMesh();
 }
 
-void UProceduralWaterComponent::InitializeWaterComponent(const FWaterInfo Water)
+void UProceduralWaterComponent::InitializeWaterComponent(const FTerrainInfo TerrainInfo)
 {
 	//Save off the variables we need for calculations so we dont have to use getter in the fast noise to get access to these variables
-	NoiseResolution=Water.NoiseResolution;
-	TotalSizeToGenerate=Water.TotalSizeToGenerate;
-	WaterHeight=Water.WaterHeight;
-	OutputScale=Water.NoiseOutputScale;
-	Mat=Water.WaterMaterial;
+	NoiseResolution=TerrainInfo.NoiseResolution;
+	TotalSizeToGenerate=TerrainInfo.TotalSizeToGenerate;
+	
+	OutputScale=TerrainInfo.NoiseOutputScale;
+	bEnableCollision = TerrainInfo.bWaterHasCollision;
+	WaterHeight = TerrainInfo.WaterHeight;
+	
+	
+	Mat=TerrainInfo.WaterMaterial;
 }
 
 void UProceduralWaterComponent::UnLoadMesh() const
 {
 	ProceduralWaterMesh->SetVisibility(false);
-	ProceduralWaterMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	if(bEnableCollision)
+		ProceduralWaterMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void UProceduralWaterComponent::LoadMesh() const
 {
 	ProceduralWaterMesh->SetVisibility(true);
-	ProceduralWaterMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	if(bEnableCollision)
+		ProceduralWaterMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 }
 
 void UProceduralWaterComponent::GenerateVertices()
@@ -64,7 +71,7 @@ void UProceduralWaterComponent::GenerateVertices()
 	for (int y = 0; y < NoiseSamplesPerLine; y++) {
 		for (int x = 0; x < NoiseSamplesPerLine; x++) {
 			//Noise Result is just the water height dont do any calculation
-			const float NoiseResult = WaterHeight-OutputScale;
+			const float NoiseResult = WaterHeight;
 			const int Index = GetIndexForGridCoordinates(x, y);
 			const FVector2D Position = GetPositionForGridCoordinates(x, y);
 			Vertices[Index] = FVector(Position.X, Position.Y, NoiseResult);
@@ -108,6 +115,16 @@ void UProceduralWaterComponent::GenerateMesh() const
 	ProceduralWaterMesh->CreateMeshSection(0,Vertices,Triangles,Normals,UV,VertexColors,Tangents,true);
 	if(Mat)
 		ProceduralWaterMesh->SetMaterial(0,Mat);
+	if(!bEnableCollision)
+	{
+		ProceduralWaterMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		ProceduralWaterMesh->SetCanEverAffectNavigation(false);
+	}
+	else
+	{
+		ProceduralWaterMesh->bFillCollisionUnderneathForNavmesh=true;
+	}
+	
 }
 
 int UProceduralWaterComponent::GetIndexForGridCoordinates(int X, int Y) const

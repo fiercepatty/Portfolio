@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "NavModifierVolume.h"
 #include "ProceduralTerrainGen.h"
 #include "GameFramework/Actor.h"
 #include "TerrainStructInfo.h"
+#include "NavMesh/NavMeshBoundsVolume.h"
 #include "TerrainManager.generated.h"
 /**Direction needed to be moved to get to another terrain location*/
 UENUM(BlueprintType)
@@ -28,7 +30,8 @@ class PORTFOLIO_API ATerrainManager : public AActor
 public:	
 	// Sets default values for this actor's properties
 	ATerrainManager();
-
+	
+	
 	/**Start the Map up and generate The required planes for it to run based on Visible Range*/
 	UFUNCTION(BlueprintCallable, CallInEditor, Category = "Terrain Generation")
 	void GeneratePlane();
@@ -71,6 +74,23 @@ private:
 
 	//Helper function to get the starting square spawned in
 	void GenerateSquareCorners();
+
+	/**Volume to prevent the player from being able to walk on water needs reference to a blocking modifier to work*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Volume" ,meta = (AllowPrivateAccess=true))
+	ANavModifierVolume* BlockingWaterLevelVolume;
+
+	/**How much the block water will be offset from the water level. Lower if desired for more water access or higher for less access*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Volume" ,meta = (AllowPrivateAccess=true))
+	float BlockingWaterOffset = 0;
+
+	/**How tall the Block Water Volume will be. The Z axis*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Volume" ,meta = (AllowPrivateAccess=true))
+	float BlockingWaterSize =2;
+	/**
+	 * Volume to make the world traversable by AI
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Volume" ,meta = (AllowPrivateAccess=true))
+	ANavMeshBoundsVolume* NavMeshBoundsVolume;
 	
 	/**Need at least one of these to generate terrain
 	 * If you have more than one when it is creating terrain it will pick one of these values randomly when creating the terrain
@@ -79,6 +99,23 @@ private:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Noise" ,meta = (AllowPrivateAccess=true))
 	TArray<FTerrainInfo> AllTerrainOptions;
+
+	/**Percentage of the world that will be water.
+	 *For example if the noise output scale for terrain is 500 then the highest point in the world is 500 and lowest is -500
+	 *A Water height you would want to used for this would be -500, 500 or you could even put it so that no matter what you set the water percentage to, 400 to 500 will always be above water if you put the Water Height Range  to -500, 400 this effect will happen
+	 *For this we will use 0 and 1000. If the world is 10 percent water than we divide 1000 by percentage and that will be the height of the water
+	 *So for 10 percent it will be 100. If we wanted 50 percent it would be 500 and so on and so forth. Number must be a between 0 and 100. If 0 then there will be no water
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Water", meta = (ClampMin = 0, ClampMax=100, AllowPrivateAccess=true))
+	float WaterPercentage = 10;
+
+	/**The Height Water Height and lowest water height achievable
+	 * Used when calculating the Water Percentage.
+	 * @warning if these water ranges are nowhere near the terrain noise output scale then this water will become independent of the noise output scale so keep these parameter between the noise output scale.
+	 * Lower Number should be Greater than negative output scale and Larger Number should be less than Noise Output scale
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Water", meta = (AllowPrivateAccess=true))
+	FVector2D WaterHeightRange =FVector2D(-2000,2000);
 
 	/**
 	 * Used to tell the Terrain picker what biome to actually pick.
@@ -96,8 +133,8 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Biome",meta = (AllowPrivateAccess=true))
 	bool bAverageConnection = true;
 
-	//The Wrapper that holds all the fast noise info for the biome
-	UPROPERTY()
+	//The Wrapper that holds all the fast noise info for the biome, Recreate the class or reload unreal if this has a nullptr in it
+	UPROPERTY(VisibleAnywhere, Category = "Terrain Settings | Noise")
 	UFastNoiseWrapper* BiomeNoise;
 
 	//Init the Fast Noise Wrapper so we can do all of our calculations and they will be consistent and repeatable
@@ -110,12 +147,6 @@ private:
 	 * then it will give each terrain option a interval that that terrain will be selected so if we have 2 terrain options 0-0.49 will be option 1 and .5 to 1 will be option 2
 	 */
 	int SelectedBiome(FVector BiomeLocation) const;
-
-	/**
-	 *This will control how high the water level is If you want no water set water height to -1
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Noise",meta = (AllowPrivateAccess=true))
-	FWaterInfo WaterOptions;
 
 	/**How large the terrain piece are individually*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Settings",meta = (ClampMin=1,AllowPrivateAccess=true))
@@ -137,6 +168,10 @@ private:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Settings" ,meta = (ClampMin=1, AllowPrivateAccess=true))
 	int VisibleRange = 1;
+
+	/**How large the terrain piece are individually*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Spawning",meta = (ClampMin=1,AllowPrivateAccess=true))
+	FVector SampleNoiseStartLocation= FVector(0);
 
 	//Have the manager create the terrain at runtime because it needs to be setup in a certain way so if the user has changed things inside the individual pieces it will cause issues so we dont give them the chance
 	virtual void BeginPlay() override;
@@ -167,10 +202,8 @@ private:
 	/**Whether or not to destroy the components when they are unloaded or to just make the invisible*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Terrain Settings | Square Arrays", meta = (AllowPrivateAccess = "true"))
 	bool bDestroyOnHide = false;
-
-
 	
-
-	
+	//Internal Sized variable for the height of the water
+	float WaterHeight =0;
 };
 

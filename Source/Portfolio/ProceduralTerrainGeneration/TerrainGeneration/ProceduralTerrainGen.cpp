@@ -36,6 +36,7 @@ AProceduralTerrainGen::AProceduralTerrainGen()
 
 }
 
+
 void AProceduralTerrainGen::DrawNatureSquares()
 {
 	for(TArray<FNatureSquares>& RowOfSquares : NatureSquares)
@@ -406,9 +407,9 @@ void AProceduralTerrainGen::GetSquareCandidates(const FVector2D& HeightPercentag
 {
 	
 	//Init the heights that are needed
-	const float WaterHeight = ProceduralWater->WaterHeight-ProceduralWater->OutputScale;
-	const float TerrainHeight = ProceduralWater->OutputScale;
-	const float LowestTerrainHeight = -ProceduralWater->OutputScale;
+	const float WaterHeight = ProceduralWater->WaterHeight;
+	const float TerrainHeight = ProceduralTerrain->FastNoiseOutputScale + ProceduralTerrain->WaterHeightOffset;
+	const float LowestTerrainHeight = (-ProceduralTerrain->FastNoiseOutputScale) + ProceduralTerrain->WaterHeightOffset;
 	FVector2D HeightRange;
 
 	//Pick the height range desired
@@ -535,42 +536,23 @@ void AProceduralTerrainGen::GenerateCurrentLandscape() const
 	
 }
 
-void AProceduralTerrainGen::InitializeVariable(const FTerrainInfo TerrainInfo, TArray<FTerrainInfo> ConnectedTerrainInfos) 
+void AProceduralTerrainGen::InitializeVariable(const FTerrainInfo TerrainInfo, const TArray<FTerrainInfo> ConnectedTerrainInfos) 
 {
 	//Init the Fast Noise or the terrain map and the Connection noise until I get a better solution for the connection
 	ProceduralTerrain->InitializeFastNoise(TerrainInfo);
 	ProceduralTerrain->InitializeConnectionNoise(ConnectedTerrainInfos);
 
 	//Creating the trigger box the box extent is just the same size as the map generated. 
-	TerrainTriggerBox->SetBoxExtent(FVector((TerrainInfo.TotalSizeToGenerate-TerrainInfo.NoiseResolution)*0.5 ,(TerrainInfo.TotalSizeToGenerate-TerrainInfo.NoiseResolution)*0.5 ,TerrainInfo.NoiseOutputScale*2));
+	TerrainTriggerBox->SetBoxExtent(FVector((TerrainInfo.TotalSizeToGenerate-TerrainInfo.NoiseResolution)*0.5 ,(TerrainInfo.TotalSizeToGenerate-TerrainInfo.NoiseResolution)*0.5 ,TerrainInfo.NoiseOutputScale * 3));
 
 	//And we need to make it so the box is in the center of the terrain so we off set it by half of the size of the map on x and y
-	TerrainTriggerBox->SetRelativeLocation(FVector((TerrainInfo.TotalSizeToGenerate)*0.5,(TerrainInfo.TotalSizeToGenerate)*0.5,0));
+	TerrainTriggerBox->SetRelativeLocation(FVector((TerrainInfo.TotalSizeToGenerate-TerrainInfo.NoiseResolution)*0.5,(TerrainInfo.TotalSizeToGenerate-TerrainInfo.NoiseResolution)*0.5,TerrainInfo.WaterHeight));
 
-	if(TerrainInfo.BiomeNatures.Num()>0)
+	if(TerrainInfo.WaterPercentage != 0)
 	{
-		BiomeFoliage = TerrainInfo.BiomeNatures;
-		bGenerateNature=true;
+		ProceduralWater->InitializeWaterComponent(TerrainInfo);
+		bWaterEnabled=true;
 	}
-}
-
-void AProceduralTerrainGen::InitializeVariable(const FTerrainInfo TerrainInfo, TArray<FTerrainInfo> ConnectedTerrainInfos, FWaterInfo WaterInfo)
-{
-	//Init the Fast Noise or the terrain map and the Connection noise until I get a better solution for the connection
-	ProceduralTerrain->InitializeFastNoise(TerrainInfo);
-	ProceduralTerrain->InitializeConnectionNoise(ConnectedTerrainInfos);
-
-	//Creating the trigger box the box extent is just the same size as the map generated. 
-	TerrainTriggerBox->SetBoxExtent(FVector((TerrainInfo.TotalSizeToGenerate-TerrainInfo.NoiseResolution)*0.5 ,(TerrainInfo.TotalSizeToGenerate-TerrainInfo.NoiseResolution)*0.5 ,TerrainInfo.NoiseOutputScale*2));
-
-	//And we need to make it so the box is in the center of the terrain so we off set it by half of the size of the map on x and y
-	TerrainTriggerBox->SetRelativeLocation(FVector((TerrainInfo.TotalSizeToGenerate)*0.5,(TerrainInfo.TotalSizeToGenerate)*0.5,0));
-
-	//Setup the water level
-	WaterInfo.NoiseOutputScale=TerrainInfo.NoiseOutputScale;
-	
-	ProceduralWater->InitializeWaterComponent(WaterInfo);
-	bWaterEnabled=true;
 
 	if(TerrainInfo.BiomeNatures.Num()>0)
 	{

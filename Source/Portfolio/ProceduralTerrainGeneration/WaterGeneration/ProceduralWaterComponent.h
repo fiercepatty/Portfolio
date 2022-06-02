@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "NavModifierComponent.h"
 #include "ProceduralMeshComponent.h"
 #include "TerrainStructInfo.h"
 #include "Components/ActorComponent.h"
@@ -22,7 +23,7 @@ public:
 	void GenerateMap(FVector StartingLocation);
 
 	//Init the Fast Noise Or the noise values used for our terrain are init here
-	void InitializeWaterComponent(FWaterInfo Water);
+	void InitializeWaterComponent(FTerrainInfo TerrainInfo);
 
 	/**Turning off the mesh and collision for the mesh when we dont need them */
 	void UnLoadMesh() const;
@@ -39,6 +40,8 @@ public:
 	/**This is the actual procedural mesh used when generating the map*/
 	UPROPERTY(VisibleAnywhere)
 	UProceduralMeshComponent* ProceduralWaterMesh;
+
+
 	
 private:
 	//This is where the Noise starts indexing in the Noise Texture. This is the starting point to index in our texture. 
@@ -91,5 +94,8 @@ private:
 	TArray<FColor> VertexColors;
 
 	UMaterialInstance* Mat=nullptr;
+
+	//Whether Collision is enabled
+	bool bEnableCollision;
 
 };

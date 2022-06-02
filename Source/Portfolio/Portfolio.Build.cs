@@ -12,6 +12,12 @@ public class Portfolio : ModuleRules
 			"Portfolio/",
 			"Portfolio/ProceduralTerrainGeneration",
 			"Portfolio/ProceduralTerrainGeneration/WaterGeneration",
+			"Portfolio/ProceduralTerrainGeneration/ActorGeneration",
+			"Portfolio/ProceduralTerrainGeneration/ActorGeneration/ChildrenClasses",
+			"Portfolio/ProceduralTerrainGeneration/ActorGeneration/ChildrenClasses/Resources",
+			"Portfolio/ProceduralTerrainGeneration/ActorGeneration/ChildrenClasses/Resources/Rocks",
+			"Portfolio/ProceduralTerrainGeneration/ActorGeneration/ChildrenClasses/Resources/Trees",
+			"Portfolio/ProceduralTerrainGeneration/ActorGeneration/ChildrenClasses/Spawners",
 			"Portfolio/ProceduralTerrainGeneration/TerrainGeneration"
 		});
 		

@@ -21,6 +21,7 @@ public:
 	// Sets default values for this actor's properties
 	AProceduralTerrainGen();
 
+	
 	//Boolean for when the manager is destroying all of the planes we dont want it to try to destroy something twice so this is used to prevent it from adding something in the array twice
 	bool bGettingDestroyed=false;
 
@@ -88,14 +89,7 @@ public:
 	 * This function is used to setup all the fast noise wrapper settings that need to be set before we can generate the mesh
 	 */
 	void InitializeVariable(FTerrainInfo TerrainInfo, TArray<FTerrainInfo> ConnectedTerrainInfos) ;
-
-	/**
-	 * @param TerrainInfo - this is the Noise Parameter used to create the Mesh
-	 * @param ConnectedTerrainInfos - the terrain in for all of the connected Terrains
-	 * @param WaterInfo - this is going to be where all the water parameters are stored for creating water
-	 * This function is used to setup all the fast noise wrapper settings that need to be set before we can generate the mesh
-	 */
-	void InitializeVariable(FTerrainInfo TerrainInfo,TArray<FTerrainInfo> ConnectedTerrainInfos, FWaterInfo WaterInfo);
+	
 
 	//LoadingTerrainIn
 	void LoadTerrain() ;

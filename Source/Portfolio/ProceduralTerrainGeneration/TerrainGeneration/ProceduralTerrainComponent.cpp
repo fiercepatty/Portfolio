@@ -6,14 +6,7 @@
 
 #include "MeshDescription.h"
 #include "TerrainStructInfo.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "Engine/StaticMesh.h"
-#include "IAssetTools.h"
-#include "DetailCategoryBuilder.h"
 #include "ProceduralMeshComponent.h"
-#include "StaticMeshAttributes.h"
-#include "PhysicsEngine/BodySetup.h"
-#include "Materials/Material.h"
 
 
 // Sets default values for this component's properties
@@ -36,6 +29,9 @@ UProceduralTerrainComponent::UProceduralTerrainComponent()
 	ConnectionNoises.Add(CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("SouthWestNoise")));
 	ConnectionNoises.Add(CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("WestNoise")));
 	ConnectionNoises.Add(CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("NorthWestNoise")));
+
+	ConnectionNoiseOutputSizes.Init(0.0f,8);
+	ConnectionNoiseWaterHeightOffset.Init(0.0f,8);
 	// ...
 }
 
@@ -52,6 +48,7 @@ void UProceduralTerrainComponent::InitializeFastNoise(const FTerrainInfo Terrain
 	FastNoiseOutputScale=Terrain.NoiseOutputScale;
 	Mat=Terrain.TerrainMaterial;
 	bAverage=Terrain.bAverageTerrainConnections;
+	WaterHeightOffset = Terrain.WaterHeightOffset;
 	
 }
 
@@ -62,6 +59,8 @@ void UProceduralTerrainComponent::InitializeConnectionNoise(TArray<FTerrainInfo>
 	{
 		ConnectionNoises[Index]->SetupFastNoise(Terrains[Index].NoiseType, Terrains[Index].Seed, Terrains[Index].Frequency, Terrains[Index].Interp, Terrains[Index].FractalType,
 				Terrains[Index].Octaves,Terrains[Index].Lacunarity,Terrains[Index].Gain,Terrains[Index].CellularJitter, Terrains[Index].CellularDistanceFunction, Terrains[Index].CellularReturnType);
+		ConnectionNoiseOutputSizes[Index] = Terrains[Index].NoiseOutputScale;
+		ConnectionNoiseWaterHeightOffset[Index]= Terrains[Index].WaterHeightOffset;
 	}
 }
 
@@ -100,153 +99,9 @@ void UProceduralTerrainComponent::LoadMesh() const
 	ProceduralTerrainMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 }
 
-
-TMap<UMaterialInterface*, FPolygonGroupID> BuildMaterialMap(const UProceduralMeshComponent* ProcMeshComp, FMeshDescription& MeshDescription)
+float UProceduralTerrainComponent::EvaluateConnectionNoiseAtIndex(const int Index, const int X, const int Y) const
 {
-	TMap<UMaterialInterface*, FPolygonGroupID> UniqueMaterials;
-	const int32 NumSections = ProcMeshComp->GetNumSections();
-	UniqueMaterials.Reserve(NumSections);
-
-	FStaticMeshAttributes AttributeGetter(MeshDescription);
-	const TPolygonGroupAttributesRef<FName> PolygonGroupNames = AttributeGetter.GetPolygonGroupMaterialSlotNames();
-	for (int32 SectionIdx = 0; SectionIdx < NumSections; SectionIdx++)
-	{
-		UMaterialInterface *Material = ProcMeshComp->GetMaterial(SectionIdx);
-		if (Material == nullptr)
-		{
-			Material = UMaterial::GetDefaultMaterial(MD_Surface);
-		}
-
-		if (!UniqueMaterials.Contains(Material))
-		{
-			FPolygonGroupID NewPolygonGroup = MeshDescription.CreatePolygonGroup();
-			UniqueMaterials.Add(Material, NewPolygonGroup);
-			PolygonGroupNames[NewPolygonGroup] = Material->GetFName();
-		}
-	}
-	return UniqueMaterials;
-}
-
-FMeshDescription UProceduralTerrainComponent::BuildANewMeshDescription(UProceduralMeshComponent* ProcMeshComp)
-{
-	FMeshDescription MeshDescription;
-
-	FStaticMeshAttributes AttributeGetter(MeshDescription);
-	AttributeGetter.Register();
-
-	TVertexAttributesRef<FVector> VertexPositions = AttributeGetter.GetVertexPositions();
-	TVertexInstanceAttributesRef<FVector> DescriptionTangents = AttributeGetter.GetVertexInstanceTangents();
-	TVertexInstanceAttributesRef<float> BinomialSigns = AttributeGetter.GetVertexInstanceBinormalSigns();
-	TVertexInstanceAttributesRef<FVector> DescriptionNormals = AttributeGetter.GetVertexInstanceNormals();
-	TVertexInstanceAttributesRef<FVector4> Colors = AttributeGetter.GetVertexInstanceColors();
-	TVertexInstanceAttributesRef<FVector2D> UVs = AttributeGetter.GetVertexInstanceUVs();
-
-	// Materials to apply to new mesh
-	const int32 NumSections = ProcMeshComp->GetNumSections();
-	int32 VertexCount = 0;
-	int32 VertexInstanceCount = 0;
-	int32 PolygonCount = 0;
-
-	TMap<UMaterialInterface*, FPolygonGroupID> UniqueMaterials = BuildMaterialMap(ProcMeshComp, MeshDescription);
-	TArray<FPolygonGroupID> PolygonGroupForSection;
-	PolygonGroupForSection.Reserve(NumSections);
-
-	// Calculate the totals for each ProcMesh element type
-	for (int32 SectionIdx = 0; SectionIdx < NumSections; SectionIdx++)
-	{
-		FProcMeshSection *ProcSection =
-			ProcMeshComp->GetProcMeshSection(SectionIdx);
-		VertexCount += ProcSection->ProcVertexBuffer.Num();
-		VertexInstanceCount += ProcSection->ProcIndexBuffer.Num();
-		PolygonCount += ProcSection->ProcIndexBuffer.Num() / 3;
-	}
-	MeshDescription.ReserveNewVertices(VertexCount);
-	MeshDescription.ReserveNewVertexInstances(VertexInstanceCount);
-	MeshDescription.ReserveNewPolygons(PolygonCount);
-	MeshDescription.ReserveNewEdges(PolygonCount * 2);
-	UVs.SetNumIndices(4);
-
-	// Create the Polygon Groups
-	for (int32 SectionIdx = 0; SectionIdx < NumSections; SectionIdx++)
-	{
-		UMaterialInterface *Material = ProcMeshComp->GetMaterial(SectionIdx);
-		if (Material == nullptr)
-		{
-			Material = UMaterial::GetDefaultMaterial(MD_Surface);
-		}
-
-		FPolygonGroupID *PolygonGroupID = UniqueMaterials.Find(Material);
-		check(PolygonGroupID != nullptr);
-		PolygonGroupForSection.Add(*PolygonGroupID);
-	}
-
-
-	// Add Vertex and VertexInstance and polygon for each section
-	for (int32 SectionIdx = 0; SectionIdx < NumSections; SectionIdx++)
-	{
-		FProcMeshSection *ProcSection =
-			ProcMeshComp->GetProcMeshSection(SectionIdx);
-		FPolygonGroupID PolygonGroupID = PolygonGroupForSection[SectionIdx];
-		// Create the vertex
-		int32 NumVertex = ProcSection->ProcVertexBuffer.Num();
-		TMap<int32, FVertexID> VertexIndexToVertexID;
-		VertexIndexToVertexID.Reserve(NumVertex);
-		for (int32 VertexIndex = 0; VertexIndex < NumVertex; ++VertexIndex)
-		{
-			FProcMeshVertex &Vert = ProcSection->ProcVertexBuffer[VertexIndex];
-			const FVertexID VertexID = MeshDescription.CreateVertex();
-			VertexPositions[VertexID] = Vert.Position;
-			VertexIndexToVertexID.Add(VertexIndex, VertexID);
-		}
-		// Create the VertexInstance
-		int32 NumIndices = ProcSection->ProcIndexBuffer.Num();
-		int32 NumTri = NumIndices / 3;
-		TMap<int32, FVertexInstanceID> InduceIndexToVertexInstanceID;
-		InduceIndexToVertexInstanceID.Reserve(NumVertex);
-		for (int32 InduceIndex = 0; InduceIndex < NumIndices; InduceIndex++)
-		{
-			const int32 VertexIndex = ProcSection->ProcIndexBuffer[InduceIndex];
-			const FVertexID VertexID = VertexIndexToVertexID[VertexIndex];
-			const FVertexInstanceID VertexInstanceID =
-				MeshDescription.CreateVertexInstance(VertexID);
-			InduceIndexToVertexInstanceID.Add(InduceIndex, VertexInstanceID);
-
-			FProcMeshVertex &ProcVertex = ProcSection->ProcVertexBuffer[VertexIndex];
-
-			DescriptionTangents[VertexInstanceID] = ProcVertex.Tangent.TangentX;
-			DescriptionNormals[VertexInstanceID] = ProcVertex.Normal;
-			BinomialSigns[VertexInstanceID] =
-				ProcVertex.Tangent.bFlipTangentY ? -1.f : 1.f;
-
-			Colors[VertexInstanceID] = FLinearColor(ProcVertex.Color);
-
-			UVs.Set(VertexInstanceID, 0, ProcVertex.UV0);
-			UVs.Set(VertexInstanceID, 1, ProcVertex.UV1);
-			UVs.Set(VertexInstanceID, 2, ProcVertex.UV2);
-			UVs.Set(VertexInstanceID, 3, ProcVertex.UV3);
-		}
-
-		// Create the polygons for this section
-		for (int32 TriIdx = 0; TriIdx < NumTri; TriIdx++)
-		{
-			FVertexID VertexIndexes[3];
-			TArray<FVertexInstanceID> VertexInstanceIDs;
-			VertexInstanceIDs.SetNum(3);
-
-			for (int32 CornerIndex = 0; CornerIndex < 3; ++CornerIndex)
-			{
-				const int32 InduceIndex = (TriIdx * 3) + CornerIndex;
-				const int32 VertexIndex = ProcSection->ProcIndexBuffer[InduceIndex];
-				VertexIndexes[CornerIndex] = VertexIndexToVertexID[VertexIndex];
-				VertexInstanceIDs[CornerIndex] =
-					InduceIndexToVertexInstanceID[InduceIndex];
-			}
-
-			// Insert a polygon into the mesh
-			MeshDescription.CreatePolygon(PolygonGroupID, VertexInstanceIDs);
-		}
-	}
-	return MeshDescription;
+	return ConnectionNoises[Index]->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0) * ConnectionNoiseOutputSizes[Index] + ConnectionNoiseWaterHeightOffset[Index];
 }
 
 void UProceduralTerrainComponent::GenerateVertices()
@@ -316,11 +171,11 @@ void UProceduralTerrainComponent::GenerateMesh() const
 float UProceduralTerrainComponent::GetNoiseValueForGridCoordinates(const int X, const int Y) const
 {
 	//Array Order [North,NorthEast,East,SouthEast,South,SouthWest,West,NorthWest]
-	
 	//Check if all of the noise maps are created 
 	if(TerrainNoise && ConnectionNoises[0] && ConnectionNoises[1] && ConnectionNoises[2] && ConnectionNoises[3] && ConnectionNoises[4]
 		&& ConnectionNoises[5] && ConnectionNoises[6] && ConnectionNoises[7])
 	{
+		const float CurrentTerrainNoise =  TerrainNoise->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0)* FastNoiseOutputScale + WaterHeightOffset;
 		//South Side 
 		if(X == 0)
 		{
@@ -330,11 +185,11 @@ float UProceduralTerrainComponent::GetNoiseValueForGridCoordinates(const int X, 
 				//Take an average of all the sides that connect to this point on the map
 				if(bAverage)
 				{
-					const float FirstNoise =ConnectionNoises[4]->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //South
-					const float SecondNoise = TerrainNoise->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //Current
-					const float ThirdNoise = ConnectionNoises[6]->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //West
-					const float FourthNoise = ConnectionNoises[5]->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //SouthWest
-					return (FirstNoise+SecondNoise+ThirdNoise+FourthNoise)/4 *FastNoiseOutputScale;
+					const float FirstNoise =EvaluateConnectionNoiseAtIndex(4,X,Y); //South
+					const float SecondNoise = CurrentTerrainNoise; //Current
+					const float ThirdNoise = EvaluateConnectionNoiseAtIndex(6,X,Y) ; //West
+					const float FourthNoise = EvaluateConnectionNoiseAtIndex(5,X,Y); //SouthWest
+					return (FirstNoise+SecondNoise+ThirdNoise+FourthNoise)/4;
 				}
 			}
 			//SouthEastCorner
@@ -343,11 +198,11 @@ float UProceduralTerrainComponent::GetNoiseValueForGridCoordinates(const int X, 
 				//Take an average of all the sides that connect to this point on the map
 				if(bAverage)
 				{
-					const float FirstNoise =ConnectionNoises[4]->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //South
-					const float SecondNoise = TerrainNoise->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //Current
-					const float ThirdNoise = ConnectionNoises[2]->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //East
-					const float FourthNoise = ConnectionNoises[3]->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //SourthEast
-					return (FirstNoise+SecondNoise+ThirdNoise+FourthNoise)/4 *FastNoiseOutputScale;
+					const float FirstNoise =EvaluateConnectionNoiseAtIndex(4,X,Y); //South
+					const float SecondNoise = CurrentTerrainNoise; //Current
+					const float ThirdNoise = EvaluateConnectionNoiseAtIndex(2,X,Y); //East
+					const float FourthNoise = EvaluateConnectionNoiseAtIndex(3,X,Y); //SourthEast
+					return (FirstNoise+SecondNoise+ThirdNoise+FourthNoise)/4;
 				}
 			}
 			else
@@ -355,9 +210,9 @@ float UProceduralTerrainComponent::GetNoiseValueForGridCoordinates(const int X, 
 				//Take an average of all the sides that connect to this point on the map
 				if(bAverage)
 				{
-					const float FirstNoise =ConnectionNoises[4]->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //South
-					const float SecondNoise = TerrainNoise->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //Current
-					return (FirstNoise+SecondNoise) * 0.5 * FastNoiseOutputScale;
+					const float FirstNoise =EvaluateConnectionNoiseAtIndex(4,X,Y); //South
+					const float SecondNoise = CurrentTerrainNoise; //Current
+					return (FirstNoise+SecondNoise) * 0.5 ;
 				}
 			}
 		}
@@ -369,11 +224,11 @@ float UProceduralTerrainComponent::GetNoiseValueForGridCoordinates(const int X, 
 				//Take an average of all the sides that connect to this point on the map
 				if(bAverage)
 				{
-					const float FirstNoise =ConnectionNoises[0]->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //North
-					const float SecondNoise = TerrainNoise->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //Current
-					const float ThirdNoise = ConnectionNoises[6]->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //West
-					const float FourthNoise = ConnectionNoises[7]->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //NorthWest
-					return (FirstNoise+SecondNoise+ThirdNoise+FourthNoise)/4 *FastNoiseOutputScale;
+					const float FirstNoise =EvaluateConnectionNoiseAtIndex(0,X,Y); //North
+					const float SecondNoise = CurrentTerrainNoise; //Current
+					const float ThirdNoise = EvaluateConnectionNoiseAtIndex(6,X,Y); //West
+					const float FourthNoise = EvaluateConnectionNoiseAtIndex(7,X,Y); //NorthWest
+					return (FirstNoise+SecondNoise+ThirdNoise+FourthNoise)/4;
 				}
 			}
 			else if(Y==NoiseSamplesPerLine-1)
@@ -381,11 +236,11 @@ float UProceduralTerrainComponent::GetNoiseValueForGridCoordinates(const int X, 
 				//Take an average of all the sides that connect to this point on the map
 				if(bAverage)
 				{
-					const float FirstNoise =ConnectionNoises[0]->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //North
-					const float SecondNoise = TerrainNoise->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //Current
-					const float ThirdNoise = ConnectionNoises[2]->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //East
-					const float FourthNoise = ConnectionNoises[1]->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //NorthEast
-					return (FirstNoise+SecondNoise+ThirdNoise+FourthNoise)/4 *FastNoiseOutputScale;
+					const float FirstNoise =EvaluateConnectionNoiseAtIndex(0,X,Y); //North
+					const float SecondNoise = CurrentTerrainNoise; //Current
+					const float ThirdNoise = EvaluateConnectionNoiseAtIndex(2,X,Y); //East
+					const float FourthNoise =EvaluateConnectionNoiseAtIndex(1,X,Y); //NorthEast
+					return (FirstNoise+SecondNoise+ThirdNoise+FourthNoise)/4;
 				}
 			}
 			else
@@ -393,9 +248,9 @@ float UProceduralTerrainComponent::GetNoiseValueForGridCoordinates(const int X, 
 				//Take an average of all the sides that connect to this point on the map
 				if(bAverage)
 				{
-					const float FirstNoise =ConnectionNoises[0]->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //North
-					const float SecondNoise = TerrainNoise->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //Current
-					return (FirstNoise+SecondNoise) * 0.5 * FastNoiseOutputScale;
+					const float FirstNoise =EvaluateConnectionNoiseAtIndex(0,X,Y); //North
+					const float SecondNoise = CurrentTerrainNoise; //Current
+					return (FirstNoise+SecondNoise) * 0.5 ;
 				}
 			}
 		
@@ -405,9 +260,9 @@ float UProceduralTerrainComponent::GetNoiseValueForGridCoordinates(const int X, 
 			//Take an average of all the sides that connect to this point on the map
 			if(bAverage)
 			{
-				const float FirstNoise =ConnectionNoises[6]->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //East
-				const float SecondNoise = TerrainNoise->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //Current
-				return (FirstNoise+SecondNoise) * 0.5 * FastNoiseOutputScale;
+				const float FirstNoise =EvaluateConnectionNoiseAtIndex(6,X,Y); //East
+				const float SecondNoise = CurrentTerrainNoise; //Current
+				return (FirstNoise+SecondNoise) * 0.5 ;
 			}
 		}
 		else if(Y == NoiseSamplesPerLine-1)
@@ -415,17 +270,15 @@ float UProceduralTerrainComponent::GetNoiseValueForGridCoordinates(const int X, 
 			//Take an average of all the sides that connect to this point on the map
 			if(bAverage)
 			{
-				const float FirstNoise =ConnectionNoises[2]->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //West
-				const float SecondNoise = TerrainNoise->GetNoise3D((X+ ComponentLocation.X),(Y+ComponentLocation.Y),0.0); //Current
-				return (FirstNoise+SecondNoise) * 0.5 * FastNoiseOutputScale;
+				const float FirstNoise =EvaluateConnectionNoiseAtIndex(2,X,Y); //West
+				const float SecondNoise = CurrentTerrainNoise; //Current
+				return (FirstNoise+SecondNoise) * 0.5;
 			}
 		}
 		//If we are not on one of the edges of the terrain we do our normal noise calculation
 		else
 		{
-			return TerrainNoise->GetNoise3D(
-			(X+ ComponentLocation.X),(Y+ComponentLocation.Y),
-			0.0)* FastNoiseOutputScale;
+			return CurrentTerrainNoise;
 		}
 	}
 	return 0;
@@ -445,92 +298,6 @@ FVector2D UProceduralTerrainComponent::GetPositionForGridCoordinates(const int X
 	);
 }
 
-UStaticMesh* UProceduralTerrainComponent::CreateStaticMesh() const
-{
-	
-	UProceduralMeshComponent* ProcMeshComp = ProceduralTerrainMesh;
-	if (ProcMeshComp != nullptr)
-	{
-		const FString NewNameSuggestion = FString(TEXT("ProcMesh"));
-		const FString PackageName = FString(TEXT("/Game/Meshes/")) + NewNameSuggestion;
-		FString Name;
-
-
-		const FString UserPackageName =PackageName;
-		const FName MeshName =*Name;
-
-
-		FMeshDescription MeshDescription = BuildANewMeshDescription(ProcMeshComp);
-
-		// If we got some valid data.
-		if (MeshDescription.Polygons().Num() > 0)
-		{
-			// Then find/create it.
-			UPackage* Package = CreatePackage(*UserPackageName);
-			check(Package);
-
-			// Create StaticMesh object
-			UStaticMesh* StaticMesh = NewObject<UStaticMesh>(Package, MeshName, RF_Public | RF_Standalone);
-			StaticMesh->InitResources();
-
-			StaticMesh->LightingGuid = FGuid::NewGuid();
-
-			// Add source to new StaticMesh
-			FStaticMeshSourceModel& SrcModel = StaticMesh->AddSourceModel();
-			SrcModel.BuildSettings.bRecomputeNormals = false;
-			SrcModel.BuildSettings.bRecomputeTangents = false;
-			SrcModel.BuildSettings.bRemoveDegenerates = false;
-			SrcModel.BuildSettings.bUseHighPrecisionTangentBasis = false;
-			SrcModel.BuildSettings.bUseFullPrecisionUVs = false;
-			SrcModel.BuildSettings.bGenerateLightmapUVs = true;
-			SrcModel.BuildSettings.SrcLightmapIndex = 0;
-			SrcModel.BuildSettings.DstLightmapIndex = 1;
-			StaticMesh->CreateMeshDescription(0, MoveTemp(MeshDescription));
-			StaticMesh->CommitMeshDescription(0);
-
-			//// SIMPLE COLLISION
-			if (!ProcMeshComp->bUseComplexAsSimpleCollision )
-			{
-				StaticMesh->CreateBodySetup();
-				UBodySetup* NewBodySetup = StaticMesh->BodySetup;
-				NewBodySetup->BodySetupGuid = FGuid::NewGuid();
-				NewBodySetup->AggGeom.ConvexElems = ProcMeshComp->ProcMeshBodySetup->AggGeom.ConvexElems;
-				NewBodySetup->bGenerateMirroredCollision = false;
-				NewBodySetup->bDoubleSidedGeometry = true;
-				NewBodySetup->CollisionTraceFlag = CTF_UseDefault;
-				NewBodySetup->CreatePhysicsMeshes();
-			}
-
-			//// MATERIALS
-			TSet<UMaterialInterface*> UniqueMaterials;
-			const int32 NumSections = ProcMeshComp->GetNumSections();
-			for (int32 SectionIdx = 0; SectionIdx < NumSections; SectionIdx++)
-			{
-				UMaterialInterface *Material = ProcMeshComp->GetMaterial(SectionIdx);
-				UniqueMaterials.Add(Material);
-			}
-			// Copy materials to new mesh
-			for (auto* Material : UniqueMaterials)
-			{
-				StaticMesh->StaticMaterials.Add(FStaticMaterial(Material));
-			}
-
-			//Set the Imported version before calling the build
-			StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
-
-			// Build mesh from source
-			StaticMesh->Build(false);
-			StaticMesh->PostEditChange();
-
-			// Notify asset registry of new asset
-			FAssetRegistryModule::AssetCreated(StaticMesh);
-
-
-			return StaticMesh;
-		}
-	}
-	return nullptr;
-}
 
 
 
