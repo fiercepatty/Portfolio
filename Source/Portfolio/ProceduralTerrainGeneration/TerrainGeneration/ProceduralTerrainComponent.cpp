@@ -15,7 +15,11 @@ UProceduralTerrainComponent::UProceduralTerrainComponent()
 	// Set this component to be initialized when the game starts, and to be ticked every frame.  You can turn these features
 	// off to improve performance if you don't need them.
 	PrimaryComponentTick.bCanEverTick = false;
-	ProceduralTerrainMesh = CreateDefaultSubobject<UProceduralMeshComponent>(TEXT("ProceduralTerrainMesh"));
+
+	// ReSharper disable once CppJoinDeclarationAndAssignment
+	
+	
+	ProceduralTerrainMesh->CreateMeshSection(0,Vertices,Triangles,Normals,UV,VertexColors,Tangents,true);
 
 	//Init the terrain for this specific terrain mesh
 	TerrainNoise =CreateDefaultSubobject<UFastNoiseWrapper>(TEXT("FastNoiseWrapper"));
@@ -122,12 +126,14 @@ void UProceduralTerrainComponent::GenerateVertices()
 
 void UProceduralTerrainComponent::GenerateTriangles()
 {
-	constexpr int QuadSize = 6; // This is the number of triangle indexes making up a quad (square section of the grid)
-	const int NumberOfQuadsPerLine = NoiseSamplesPerLine - 1; // We have one less quad per line than the amount of vertices, since each vertex is the start of a quad except the last ones
+	// This is the number of triangle indexes making up a quad (square section of the grid)
+	constexpr int QuadSize = 6;
+	// We have one less quad per line than the amount of vertices, since each vertex is the start of a quad except the last ones
+	const int NumberOfQuadsPerLine = NoiseSamplesPerLine - 1;
 	// In our triangles array, we need 6 values per quad
 	const int TrianglesArraySize = NumberOfQuadsPerLine * NumberOfQuadsPerLine * QuadSize;
 	Triangles.Init(0, TrianglesArraySize);
-
+	//Init the amount of Squares the Mesh has
 	NatureSquares.Init(TArray<FNatureSquares>(),NumberOfQuadsPerLine);
 
 	for (int y = 0; y < NumberOfQuadsPerLine; y++) {
@@ -146,23 +152,23 @@ void UProceduralTerrainComponent::GenerateTriangles()
 			Triangles[TriangleIndex + 1] = TopLeftIndex;
 			Triangles[TriangleIndex + 2] = TopRightIndex;
 
-			//NatureTriangles.Add(FNatureTriangle(Vertices[BottomLeftIndex],Vertices[TopLeftIndex],Vertices[TopRightIndex]));
-
-
-			
 			Triangles[TriangleIndex + 3] = BottomLeftIndex;
 			Triangles[TriangleIndex + 4] = TopRightIndex;
 			Triangles[TriangleIndex + 5] = BottomRightIndex;
 
-			//NatureTriangles.Add(FNatureTriangle(Vertices[BottomLeftIndex],Vertices[TopRightIndex],Vertices[BottomRightIndex]));
-			NatureSquares[y].Add(FNatureSquares(Vertices[BottomLeftIndex],Vertices[TopLeftIndex],Vertices[TopRightIndex],Vertices[BottomRightIndex]));
+			//Creating the Nature Squares for Foliage Generation
+			NatureSquares[y].Add(FNatureSquares(Vertices[BottomLeftIndex],Vertices[TopLeftIndex],
+				Vertices[TopRightIndex],Vertices[BottomRightIndex]));
 		}
 	}
 }
 
 void UProceduralTerrainComponent::GenerateMesh() const
 {
+	
 	ProceduralTerrainMesh->CreateMeshSection(0,Vertices,Triangles,Normals,UV,VertexColors,Tangents,true);
+
+
 	if(Mat)
 		ProceduralTerrainMesh->SetMaterial(0,Mat);
 	

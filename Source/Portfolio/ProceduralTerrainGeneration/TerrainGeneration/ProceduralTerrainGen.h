@@ -21,7 +21,7 @@ public:
 	// Sets default values for this actor's properties
 	AProceduralTerrainGen();
 
-
+	/**Destroy all the blueprint actors attached the terrain*/
 	void DestroyAllAttachedActors();
 	
 	//Boolean for when the manager is destroying all of the planes we dont want it to try to destroy something twice so this is used to prevent it from adding something in the array twice
